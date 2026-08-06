@@ -1,16 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:Reficio.ViewModels"
         x:Class="Reficio.Views.LoginWindow"
         Title="Reficio — Inicio de Sesión"
         Width="520" Height="360"
         WindowStartupLocation="CenterScreen"
         CanResize="False"
         Background="#F5F6FA">
-
-    <Window.DataContext>
-        <vm:LoginViewModel />
-    </Window.DataContext>
 
     <Window.Styles>
         <Style Selector="Button.primary">

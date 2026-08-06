@@ -18,6 +18,7 @@ public partial class LoginViewModel : ObservableObject
     [ObservableProperty] private bool _hasError;
 
     public UserModel? AuthenticatedUser { get; private set; }
+    public event Action<bool>? LoginCompleted;
 
     public void SetWindow(Window window) => _window = window;
 
@@ -55,7 +56,7 @@ public partial class LoginViewModel : ObservableObject
 
             AuthenticatedUser = user;
             StatusText = "Acceso concedido";
-            _window?.Close(true);
+            LoginCompleted?.Invoke(true);
         }
         catch (Exception ex)
         {
