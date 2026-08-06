@@ -1,8 +1,10 @@
 # Version
 
 ## 1.4.2 - Agosto 2026 (en preparación)
+- Corregido el error en gbak durante "Reparación Profunda": el orden de los argumentos estaba invertido (la ruta de backup se pasaba como base de datos origen), lo que provocaba "El sistema no puede encontrar el archivo". Ahora gbak recibe primero la BD de origen y luego el archivo de backup. Aplicado también a SoloBackup y NBackup.
+- Desconexión ahora limpia el pool de conexiones Firebird (`FbConnection.ClearAllPools()`) para que el servidor libere realmente el archivo .fdb y no aparezca "base de datos en uso por otro proceso".
 - Agregado botón "Desconectar" para cerrar la conexión a la base de datos y liberar el archivo .fdb antes de aplicar reparaciones (evita el error "base de datos en uso por otro programa").
-- Las operaciones de reparación/mantenimiento desconectan automáticamente la BD antes de ejecutar gbak/gfix, y luego retoman con la ruta indicada.
+- Las operaciones de reparación/mantenimiento desconectan automáticamente la BD antes de ejecutar gbak/gfix.
 - Agregado botón "Examinar" en la fila "Herramientas" para seleccionar la carpeta de gbak/gfix/gstat mediante selector de carpetas.
 - Actualizador: el auto-check ya no falla en silencio; si no puede consultar git, registra el error en el log y lo indica en la barra de estado (e.g. "sin token de git").
 - Añadido `Reficio_setup_creds.sh` (macOS) para configurar el Personal Access Token de GitLab en `~/.git-credentials`, equivalente al `.bat` de Windows.

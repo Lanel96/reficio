@@ -92,4 +92,9 @@ public class FirebirdDbService : IDisposable
         _connection?.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public static void ClearAllPools()
+    {
+        FbConnection.ClearAllPools();
+    }
 }

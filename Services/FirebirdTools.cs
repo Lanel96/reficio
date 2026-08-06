@@ -7,6 +7,10 @@ public static class FirebirdTools
 {
     public static RepairResult RunTool(string binDir, string tool, string dbPath,
         string user, string password, params string[] extraArgs)
+        => RunTool(binDir, tool, dbPath, user, password, true, extraArgs);
+
+    public static RepairResult RunTool(string binDir, string tool, string dbPath,
+        string user, string password, bool appendDbPath, params string[] extraArgs)
     {
         var result = new RepairResult { Step = tool };
         try
@@ -16,7 +20,7 @@ public static class FirebirdTools
 
             var args = new List<string> { "-user", user, "-password", password };
             args.AddRange(extraArgs);
-            args.Add(dbPath);
+            if (appendDbPath) args.Add(dbPath);
 
             var psi = new ProcessStartInfo
             {
@@ -90,7 +94,7 @@ public static class FirebirdTools
             output.AppendLine($"Nota: gfix mend terminó con código {mendResult.ExitCode} (puede ser normal)");
 
         onProgress?.Invoke(0.2, "Paso 2/4: Generando backup (gbak -b)...");
-        var backupResult = RunTool(binDir, "gbak", dbPath, user, password, "-b", "-g", "-v", backupPath);
+        var backupResult = RunTool(binDir, "gbak", dbPath, user, password, false, "-b", "-g", "-v", dbPath, backupPath);
         output.AppendLine($"\n=== BACKUP ===\n{backupResult.Output}");
         if (!backupResult.Success)
         {
@@ -99,7 +103,7 @@ public static class FirebirdTools
         }
 
         onProgress?.Invoke(0.5, "Paso 3/4: Restaurando base de datos (gbak -c)...");
-        var restoreResult = RunTool(binDir, "gbak", backupPath, user, password, "-c", "-v", restoredPath);
+        var restoreResult = RunTool(binDir, "gbak", backupPath, user, password, false, "-c", "-v", backupPath, restoredPath);
         output.AppendLine($"\n=== RESTORE ===\n{restoreResult.Output}");
         if (!restoreResult.Success)
         {
@@ -118,7 +122,7 @@ public static class FirebirdTools
     public static RepairResult SoloBackup(string binDir, string dbPath, string user, string password, string backupPath, ProgressCallback? onProgress = null)
     {
         onProgress?.Invoke(0.1, "Iniciando backup (gbak -b -g -v)...");
-        var result = RunTool(binDir, "gbak", dbPath, user, password, "-b", "-g", "-v", backupPath);
+        var result = RunTool(binDir, "gbak", dbPath, user, password, false, "-b", "-g", "-v", dbPath, backupPath);
         onProgress?.Invoke(1.0, result.Success ? "Backup completado" : "Error en backup");
         return result;
     }
@@ -142,8 +146,7 @@ public static class FirebirdTools
     public static RepairResult NBackup(string binDir, string dbPath, string user, string password, string backupPath, int level = 0, ProgressCallback? onProgress = null)
     {
         onProgress?.Invoke(0.1, $"Iniciando nbackup nivel {level}...");
-        var levelArg = level > 0 ? $"-L {level}" : "";
-        var result = RunTool(binDir, "nbackup", dbPath, user, password, "-B", backupPath);
+        var result = RunTool(binDir, "nbackup", dbPath, user, password, false, "-B", level > 0 ? level.ToString() : "0", dbPath, backupPath);
         onProgress?.Invoke(1.0, result.Success ? "NBackup completado" : "Error en NBackup");
         return result;
     }

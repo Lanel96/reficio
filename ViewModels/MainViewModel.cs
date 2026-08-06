@@ -136,6 +136,7 @@ public partial class MainViewModel : ObservableObject
         _db = null;
         _facturaModule = null;
         _pacienteModule = null;
+        FirebirdDbService.ClearAllPools();
         FacturaStatus = "Conecte a una BD"; FacturaRecords.Clear(); FacturaSelectedIndex = -1; FacturaCount = "0 registros";
         PacienteStatus = "Conecte a una BD"; PacienteRecords.Clear(); PacienteSelectedIndex = -1; PacienteCount = "0 registros";
         AppendLog("Base de datos desconectada");
