@@ -251,6 +251,30 @@ public partial class MainViewModel : ObservableObject
         Task.Run(() => { try { var r = FirebirdTools.UpgradeODS(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
     }
 
+    [RelayCommand] private async Task MigrarODSAsync()
+    {
+        if (!ValidateDb()) return;
+        DisconnectDatabase();
+        if (!await ConfirmAsync("¿Migrar la base de datos de Firebird 3.0 a 4.0 (ODS 12 → 13)?\nSe creará un backup y una nueva base sin modificar la original.")) return;
+        SetRunning(true);
+        Task.Run(() =>
+        {
+            try
+            {
+                var ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var ext = Path.GetExtension(DbPath);
+                var basePath = DbPath[..^ext.Length];
+                var backupPath = $"{DbPath}.{ts}.fbk";
+                var newDbPath = $"{basePath}_ODS4{ext}";
+                AppendLog($"Backup: {backupPath}");
+                AppendLog($"Nueva base (ODS 4.0): {newDbPath}");
+                var r = FirebirdTools.MigrarODS(BinDir, DbPath, User, Password, backupPath, newDbPath, UpdateProgress);
+                AppendLogResult(r);
+            }
+            finally { SetRunning(false); }
+        });
+    }
+
     [RelayCommand] private void SearchFactura() => DoSearchFactura();
 
     [RelayCommand] private void ClearFactura() { FacturaCodi = ""; FacturaRecords.Clear(); FacturaSelectedIndex = -1; FacturaCount = "0 registros"; FacturaStatus = "Conecte a una BD"; }

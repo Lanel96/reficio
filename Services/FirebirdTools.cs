@@ -166,4 +166,30 @@ public static class FirebirdTools
         onProgress?.Invoke(1.0, result.Success ? "ODS actualizado" : "Error actualizando ODS");
         return result;
     }
+
+    public static RepairResult MigrarODS(string binDir, string dbPath, string user, string password, string backupPath, string newDbPath, ProgressCallback? onProgress = null)
+    {
+        // Convierte el ODS del motor de la base: backup con gbak y restauración con el motor (Firebird 4.0 genera ODS 13).
+        onProgress?.Invoke(0.05, "Migrando ODS a Firebird 4.0 (paso 1/2: gbak -b)...");
+        var backup = RunTool(binDir, "gbak", dbPath, user, password, false, "-b", "-y", "-v", dbPath, backupPath);
+        var output = new System.Text.StringBuilder();
+        output.AppendLine("=== BACKUP ===\n" + backup.Output);
+        if (!backup.Success)
+        {
+            onProgress?.Invoke(1.0, "Error en backup");
+            return new RepairResult { Success = false, Output = output.ToString(), Error = $"Backup falló: {backup.Error}", Step = "Migración ODS 3.0 → 4.0" };
+        }
+
+        onProgress?.Invoke(0.6, "Migrando ODS a Firebird 4.0 (paso 2/2: gbak -c)...");
+        var restore = RunTool(binDir, "gbak", backupPath, user, password, false, "-c", "-y", "-v", backupPath, newDbPath);
+        output.AppendLine("\n=== RESTORE ===\n" + restore.Output);
+        if (!restore.Success)
+        {
+            onProgress?.Invoke(1.0, "Error en restauración");
+            return new RepairResult { Success = false, Output = output.ToString(), Error = $"Restauración falló: {restore.Error}", Step = "Migración ODS 3.0 → 4.0" };
+        }
+
+        onProgress?.Invoke(1.0, $"Migración completa. Nueva base (ODS 4.0): {newDbPath}");
+        return new RepairResult { Success = true, Output = output.ToString(), Step = "Migración ODS 3.0 → 4.0" };
+    }
 }

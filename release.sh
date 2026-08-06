@@ -65,9 +65,9 @@ echo "[4/6] Subiendo paquetes de instalación al repositorio git..."
 for ZIP in "$SCRIPT_DIR"/publish/Reficio-*.zip; do
   FILE_NAME="$(basename "$ZIP")"
   echo "        Subiendo $FILE_NAME ..."
-  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' --request POST \
+  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' --request PUT \
     --header "PRIVATE-TOKEN: $TOKEN" \
-    --data-binary "@$ZIP" \
+    --upload-file "$ZIP" \
     "$API/packages/generic/$PACKAGE/$VERSION/$FILE_NAME")"
   if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
     echo "[ERROR] No se pudo subir $FILE_NAME (HTTP $HTTP_CODE)"

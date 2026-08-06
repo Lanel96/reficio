@@ -1,6 +1,7 @@
 # Version
 
 ## 1.4.2 - Agosto 2026
+- Agregado botón "Migrar a Firebird 4.0": convierte el ODS de una base de Firebird 3.0 (ODS 12) a Firebird 4.0 (ODS 13) mediante backup y restauración con gbak. Genera una nueva base (`*_ODS4.FDB`) sin modificar la original. Nota: `gfix -upgrade` no salta entre versiones mayores.
 - Agregado botón "Actualizar" en la barra de estado (antes el comando existía pero no estaba enlazado a ningún botón) para revisar/descargar la versión publicada en git manualmente.
 - Corregido el error de "Restauración falló" en Reparación Profunda: la BD original se renombraba a `_dañada` DESPUÉS de restaurar, por lo que gbak -c no podía crear el archivo (la ruta seguía ocupada). Ahora el original se renombra ANTES de restaurar y, si la reparación falla, se intenta devolver el archivo a su ruta original.
 - Corregido el error en gbak durante "Reparación Profunda": el orden de los argumentos estaba invertido (la ruta de backup se pasaba como base de datos origen), lo que provocaba "El sistema no puede encontrar el archivo". Ahora gbak recibe primero la BD de origen y luego el archivo de backup. Aplicado también a SoloBackup y NBackup.
