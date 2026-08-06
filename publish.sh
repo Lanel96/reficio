@@ -54,7 +54,8 @@ create_app_bundle() {
   done
 
   # Copiar icono
-  cp "../../Resources/Reficio.icns" "$APP_DIR/Resources/Reficio.icns"
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cp "$SCRIPT_DIR/Resources/Reficio.icns" "$APP_DIR/Resources/Reficio.icns"
 
   # Crear Info.plist
   cat > "$APP_DIR/Info.plist" << 'PLIST'
@@ -71,9 +72,9 @@ create_app_bundle() {
     <key>CFBundleName</key>
     <string>Reficio</string>
     <key>CFBundleVersion</key>
-    <string>1.3.8</string>
+    <string>1.4.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.3.8</string>
+    <string>1.4.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleIconFile</key>
