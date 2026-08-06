@@ -174,9 +174,23 @@ public partial class MainViewModel : ObservableObject
                 var backupPath = $"{DbPath}.{ts}.fbk";
                 var ext = Path.GetExtension(DbPath);
                 var danadaPath = DbPath[..^ext.Length] + "_dañada" + ext;
-                AppendLog($"Original se renombrará a: {danadaPath}");
-                var r = FirebirdTools.RepararProfundo(BinDir, DbPath, User, Password, backupPath, DbPath, UpdateProgress);
-                if (r.Success) { try { File.Move(DbPath, danadaPath, true); AppendLog($"Renombrada a: {danadaPath}"); } catch (Exception ex) { r.Error = $"No se pudo renombrar: {ex.Message}"; r.Success = false; } }
+
+                // Renombrar el original ANTES de restaurar, para liberar la ruta destino.
+                try
+                {
+                    if (File.Exists(DbPath)) File.Move(DbPath, danadaPath, true);
+                    AppendLog($"Original renombrado a: {danadaPath}");
+                }
+                catch (Exception ex) { AppendLog($"No se pudo renombrar el original: {ex.Message}"); }
+
+                // La BD fuente ahora es el archivo renombrado; se restaura al nombre original.
+                var r = FirebirdTools.RepararProfundo(BinDir, danadaPath, User, Password, backupPath, DbPath, UpdateProgress);
+
+                // Si falló, intentar devolver el archivo original a su ruta.
+                if (!r.Success && File.Exists(danadaPath) && !File.Exists(DbPath))
+                {
+                    try { File.Move(danadaPath, DbPath, true); AppendLog("Se restauró el archivo original a su ruta"); } catch { }
+                }
                 AppendLogResult(r);
             }
             finally { SetRunning(false); }

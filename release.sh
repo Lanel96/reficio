@@ -76,11 +76,26 @@ for ZIP in "$SCRIPT_DIR"/publish/Reficio-*.zip; do
 done
 
 # ---------------------------------------------------------------
-# 6. Verificación
+# 6. Crear el Release en GitLab (asociado al tag)
 # ---------------------------------------------------------------
-echo "[5/6] Verificando versión publicada..."
+echo "[5/6] Creando Release v$VERSION en GitLab..."
+DESC="Reficio v$VERSION. Descarga el instalador correspondiente a tu plataforma desde este release."
+HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' --request POST \
+  --header "PRIVATE-TOKEN: $TOKEN" \
+  --header "Content-Type: application/json" \
+  --data "{\"name\":\"v$VERSION\",\"tag_name\":\"v$VERSION\",\"description\":\"$DESC\"}" \
+  "$API/releases")"
+if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "409" ]; then
+  echo "[ERROR] No se pudo crear el Release (HTTP $HTTP_CODE)"
+  exit 1
+fi
+
+# ---------------------------------------------------------------
+# 7. Verificación
+# ---------------------------------------------------------------
+echo "[6/6] Verificando versión publicada..."
 echo "        (uso de la app) git: $GIT_HOST/luisleon/reficiov2 - tag v$VERSION"
 
 echo ""
 echo "=== Publicación v$VERSION completada ==="
-echo "La aplicación descargará la versión automáticamente al consultar git."
+echo "La aplicación validará la versión y descargará el instalador desde git."

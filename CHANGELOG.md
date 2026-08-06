@@ -1,6 +1,8 @@
 # Version
 
-## 1.4.2 - Agosto 2026 (en preparación)
+## 1.4.2 - Agosto 2026
+- Agregado botón "Actualizar" en la barra de estado (antes el comando existía pero no estaba enlazado a ningún botón) para revisar/descargar la versión publicada en git manualmente.
+- Corregido el error de "Restauración falló" en Reparación Profunda: la BD original se renombraba a `_dañada` DESPUÉS de restaurar, por lo que gbak -c no podía crear el archivo (la ruta seguía ocupada). Ahora el original se renombra ANTES de restaurar y, si la reparación falla, se intenta devolver el archivo a su ruta original.
 - Corregido el error en gbak durante "Reparación Profunda": el orden de los argumentos estaba invertido (la ruta de backup se pasaba como base de datos origen), lo que provocaba "El sistema no puede encontrar el archivo". Ahora gbak recibe primero la BD de origen y luego el archivo de backup. Aplicado también a SoloBackup y NBackup.
 - Desconexión ahora limpia el pool de conexiones Firebird (`FbConnection.ClearAllPools()`) para que el servidor libere realmente el archivo .fdb y no aparezca "base de datos en uso por otro proceso".
 - Agregado botón "Desconectar" para cerrar la conexión a la base de datos y liberar el archivo .fdb antes de aplicar reparaciones (evita el error "base de datos en uso por otro programa").
