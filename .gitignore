@@ -1,7 +1,34 @@
+## Binaries
 reficio
 reficio.exe
+
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Firebird
 *.fbk
 *.log
-.DS_Store
+
+## IDE
 .idea/
 .vscode/
+*.sln.iml
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+## Linux
+*~
+.directory
