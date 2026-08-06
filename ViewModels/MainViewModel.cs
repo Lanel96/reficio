@@ -88,6 +88,19 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task BrowseBinDirAsync()
+    {
+        var window = GetWindow();
+        if (window == null) return;
+        var dirs = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Seleccionar carpeta de herramientas Firebird",
+            AllowMultiple = false
+        });
+        if (dirs.Count > 0) BinDir = dirs[0].Path.LocalPath;
+    }
+
+    [RelayCommand]
     private void Connect()
     {
         var window = GetWindow();
