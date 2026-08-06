@@ -22,7 +22,7 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private string _dbPath = "";
     [ObservableProperty] private string _user = "SYSDBA";
-    [ObservableProperty] private string _password = "masterkey";
+    [ObservableProperty] private string _password = "";
     [ObservableProperty] private string _binDir = "";
     [ObservableProperty] private string _statusText = "Listo";
     [ObservableProperty] private string _logText = "";
@@ -56,7 +56,7 @@ public partial class MainViewModel : ObservableObject
         _config = ConfigService.Load();
         DbPath = _config.LastDbPath;
         User = _config.User;
-        Password = _config.Password;
+        Password = "";
         BinDir = _config.BinDir;
         var ver = UpdaterService.GetCurrentVersion();
         VersionText = $"v{ver}";
@@ -459,5 +459,5 @@ public partial class MainViewModel : ObservableObject
                 if (!string.IsNullOrWhiteSpace(line)) AppendLog($"  {line.Trim()}");
     }
 
-    public void SaveConfig() { _config.LastDbPath = DbPath; _config.User = User; _config.Password = Password; _config.BinDir = BinDir; ConfigService.Save(_config); }
+    public void SaveConfig() { _config.LastDbPath = DbPath; _config.User = User; _config.BinDir = BinDir; ConfigService.Save(_config); }
 }

@@ -19,36 +19,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-
-            var vm = new LoginViewModel();
-            var loginWindow = new LoginWindow { DataContext = vm };
-            vm.SetWindow(loginWindow);
-
-            vm.LoginCompleted += authenticated =>
+            var vm = new MainViewModel();
+            var window = new MainWindow { DataContext = vm };
+            window.Closed += (_, _) =>
             {
-                if (authenticated)
-                {
-                    var mainVm = new MainViewModel();
-                    var window = new MainWindow { DataContext = mainVm };
-                    window.Closed += (_, _) =>
-                    {
-                        mainVm.SaveConfig();
-                        UpdaterService.StopAutoCheck();
-                        desktop.Shutdown();
-                    };
-                    desktop.MainWindow = window;
-                    desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-                    window.Show();
-                }
-                else
-                {
-                    desktop.Shutdown();
-                }
-                loginWindow.Close();
+                vm.SaveConfig();
+                UpdaterService.StopAutoCheck();
             };
-
-            loginWindow.Show();
+            desktop.MainWindow = window;
+            window.Show();
         }
         base.OnFrameworkInitializationCompleted();
     }
