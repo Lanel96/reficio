@@ -6,6 +6,10 @@ echo ""
 
 DOTNET="/usr/local/share/dotnet/dotnet"
 PUBLISH_DIR="publish"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="$(sed -nE 's#.*<Version>(.*)</Version>.*#\1#p' "$SCRIPT_DIR/Reficio.csproj" | head -1)"
+[ -z "$VERSION" ] && VERSION="1.4.0"
+echo "Versión a publicar: $VERSION"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR"
@@ -58,7 +62,7 @@ create_app_bundle() {
   cp "$SCRIPT_DIR/Resources/Reficio.icns" "$APP_DIR/Resources/Reficio.icns"
 
   # Crear Info.plist
-  cat > "$APP_DIR/Info.plist" << 'PLIST'
+  cat > "$APP_DIR/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -72,9 +76,9 @@ create_app_bundle() {
     <key>CFBundleName</key>
     <string>Reficio</string>
     <key>CFBundleVersion</key>
-    <string>1.4.0</string>
+    <string>$VERSION</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.4.0</string>
+    <string>$VERSION</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleIconFile</key>

@@ -195,31 +195,31 @@
                                                FontWeight="SemiBold" Foreground="#6B7280"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="Diagnosticar" Classes="secondary"
-                                                Command="{Binding DiagnosticarAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding DiagnosticarCommand}" Padding="16,8"/>
                                         <Button Content="Reparar Ligero" Classes="secondary"
-                                                Command="{Binding RepararLigeroAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding RepararLigeroCommand}" Padding="16,8"/>
                                         <Button Content="Reparar Profundo" Classes="danger"
-                                                Command="{Binding RepararProfundoAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding RepararProfundoCommand}" Padding="16,8"/>
                                     </StackPanel>
                                     <!-- Row 2: Mantenimiento -->
                                     <TextBlock Text="Mantenimiento" FontSize="12"
                                                FontWeight="SemiBold" Foreground="#6B7280" Margin="0,4,0,0"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="Verificar" Classes="success"
-                                                Command="{Binding VerificarAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding VerificarCommand}" Padding="16,8"/>
                                         <Button Content="Limpiar basura" Classes="secondary"
-                                                Command="{Binding SweepAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding SweepCommand}" Padding="16,8"/>
                                         <Button Content="Backup" Classes="secondary"
-                                                Command="{Binding SoloBackupAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding SoloBackupCommand}" Padding="16,8"/>
                                         <Button Content="NBackup" Classes="secondary"
-                                                Command="{Binding NBackupAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding NBackupCommand}" Padding="16,8"/>
                                     </StackPanel>
                                     <!-- Row 3: Utilidades -->
                                     <TextBlock Text="Utilidades" FontSize="12"
                                                FontWeight="SemiBold" Foreground="#6B7280" Margin="0,4,0,0"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Content="Actualizar ODS" Classes="secondary"
-                                                Command="{Binding UpgradeODSAsyncCommand}" Padding="16,8"/>
+                                                Command="{Binding UpgradeODSCommand}" Padding="16,8"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Border Background="#F9FAFB" CornerRadius="8" Padding="2"

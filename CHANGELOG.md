@@ -1,5 +1,11 @@
 # Version
 
+## 1.4.1 - Agosto 2026
+- Corregido el módulo Reparar: los botones estaban deshabilitados porque usaban nombres de comando inexistentes (sufijo "Async" innecesario). Ahora todas las opciones están habilitadas.
+- Actualizador: ahora consulta el tag más reciente del repositorio git (reficiov2@git.upc.com.mx) y descarga la versión publicada desde el registro de paquetes de git.
+- Nuevo script `release.sh` que publica una versión: actualiza la versión, commitea/subue todo el código, etiqueta (tag), compila los binarios y los sube a git para que la app los descargue automáticamente.
+- `publish.sh` toma la versión directamente de `Reficio.csproj` (una sola fuente de la verdad).
+
 ## 1.3.8 - Agosto 2026
 - Corregido comportamiento de edición en ambos módulos (factura y paciente)
 - Mensaje "Haga clic en un registro para editarlo" después de cada búsqueda

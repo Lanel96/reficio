@@ -11,7 +11,10 @@ namespace Reficio.Services;
 
 public static class UpdaterService
 {
-    private const string ApiBaseUrl = "https://git.upc.com.mx/luisleon/reficio";
+    private const string GitHost = "git.upc.com.mx";
+    private const string GitProject = "luisleon%2Freficiov2";
+    private const string PackageName = "reficio";
+    private const string ApiBaseUrl = $"https://{GitHost}/api/v4/projects/{GitProject}";
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private static Timer? _checkTimer;
 
@@ -57,14 +60,13 @@ public static class UpdaterService
     {
         var platform = GetPlatformTag();
         var zipName = $"Reficio-{platform}.zip";
-        var url = downloadUrl.Contains(zipName) ? downloadUrl : $"{downloadUrl}/{zipName}";
 
         onProgress?.Invoke(0.1, "Descargando actualización...");
         var tmpDir = Path.Combine(Path.GetTempPath(), "reficio_update");
         Directory.CreateDirectory(tmpDir);
         var zipPath = Path.Combine(tmpDir, zipName);
 
-        var response = await Http.GetAsync(url);
+        var response = await Http.GetAsync(downloadUrl);
         response.EnsureSuccessStatusCode();
         var totalBytes = response.Content.Headers.ContentLength ?? -1L;
         await using var stream = await response.Content.ReadAsStreamAsync();
@@ -132,50 +134,27 @@ public static class UpdaterService
 
     private static async Task<(string version, string downloadUrl)> GetLatestReleaseAsync()
     {
-        var url = $"{ApiBaseUrl}/-/releases.json";
+        // Utiliza el tag más reciente publicado en git como versión disponible.
+        var url = $"{ApiBaseUrl}/repository/tags?per_page=100&order=desc";
         AddAuth(Http);
         var json = await Http.GetStringAsync(url);
-        if (json.Contains("<html", StringComparison.OrdinalIgnoreCase))
-            return await GetLatestTagFallback();
-
-        var releases = JsonConvert.DeserializeObject<List<GitLabRelease>>(json);
-        if (releases == null || releases.Count == 0)
-            return await GetLatestTagFallback();
-
-        var latest = releases[0];
-        var version = latest.TagName.TrimStart('v');
-        var downloadUrl = $"{ApiBaseUrl}/-/releases/{latest.TagName}/downloads";
-
-        return (version, downloadUrl);
-    }
-
-    private static async Task<(string version, string downloadUrl)> GetLatestTagFallback()
-    {
-        var url = $"{ApiBaseUrl}/-/tags?per_page=20&orderby=created_at&sort=desc";
-        AddAuth(Http);
-        var json = await Http.GetStringAsync(url);
-        if (json.Contains("<html", StringComparison.OrdinalIgnoreCase))
-            throw new Exception("No se pudo conectar al repositorio");
-
         var tags = JsonConvert.DeserializeObject<List<GitLabTag>>(json);
-        if (tags == null || tags.Count == 0) throw new Exception("No se encontraron versiones");
+        if (tags == null || tags.Count == 0)
+            throw new Exception("No se encontraron versiones publicadas en el repositorio git");
 
         var latest = "";
         foreach (var tag in tags)
         {
             var v = tag.Name.TrimStart('v');
+            if (!System.Version.TryParse(v, out _)) continue;
             if (string.IsNullOrEmpty(latest) || CompareVersions(v, latest) > 0) latest = v;
         }
-        return (latest, $"{ApiBaseUrl}/-/tags/v{latest}/downloads");
-    }
+        if (string.IsNullOrEmpty(latest))
+            throw new Exception("No se encontró una versión válida en el repositorio git");
 
-    private static void AddAuth(HttpClient client)
-    {
-        var creds = GetAuthCredentials();
-        if (!string.IsNullOrEmpty(creds))
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",
-                    Convert.ToBase64String(Encoding.UTF8.GetBytes(creds)));
+        var fileName = $"Reficio-{GetPlatformTag()}.zip";
+        var downloadUrl = $"{ApiBaseUrl}/packages/generic/{PackageName}/{latest}/{fileName}";
+        return (latest, downloadUrl);
     }
 
     private static string GetPlatformTag()
@@ -224,22 +203,29 @@ public static class UpdaterService
         return 0;
     }
 
-    private static string? GetAuthCredentials()
+    private static string? GetAuthToken()
     {
         var credPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".git-credentials");
         if (File.Exists(credPath))
             foreach (var line in File.ReadLines(credPath))
-                if (line.Contains("git.upc.com.mx") && line.Contains("://"))
-                { var parts = line.Split("://")[1].Split('@'); if (parts.Length == 2) return parts[0]; }
+                if (line.Contains(GitHost) && line.Contains("://"))
+                {
+                    var parts = line.Split("://")[1].Split('@');
+                    if (parts.Length != 2) continue;
+                    var creds = parts[0].Split(':');
+                    if (creds.Length == 2) return creds[1];
+                }
         var u = Environment.GetEnvironmentVariable("GIT_USERNAME");
         var p = Environment.GetEnvironmentVariable("GIT_PASSWORD");
-        return (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) ? $"{u}:{p}" : null;
+        return (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) ? p : null;
+    }
+
+    private static void AddAuth(HttpClient client)
+    {
+        var token = GetAuthToken();
+        if (!string.IsNullOrEmpty(token))
+            client.DefaultRequestHeaders.TryAddWithoutValidation("PRIVATE-TOKEN", token);
     }
 
     private class GitLabTag { [JsonProperty("name")] public string Name { get; set; } = ""; }
-    private class GitLabRelease
-    {
-        [JsonProperty("tag_name")] public string TagName { get; set; } = "";
-        [JsonProperty("name")] public string Name { get; set; } = "";
-    }
 }
