@@ -1,0 +1,245 @@
+using System.Diagnostics;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using Newtonsoft.Json;
+using Reficio.Models;
+
+namespace Reficio.Services;
+
+public static class UpdaterService
+{
+    private const string ApiBaseUrl = "https://git.upc.com.mx/luisleon/reficio";
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static Timer? _checkTimer;
+
+    public static string GetCurrentVersion()
+    {
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        if (ver != null && ver.ToString(3) != "0.0.0") return ver.ToString(3);
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "VERSION");
+        return File.Exists(path) ? File.ReadAllText(path).Trim() : "0.0.0";
+    }
+
+    public static void StartAutoCheck(Action<string> onUpdateAvailable)
+    {
+        _checkTimer?.Dispose();
+        _checkTimer = new Timer(async _ =>
+        {
+            try
+            {
+                var info = await CheckForUpdateAsync();
+                if (info.Available)
+                    onUpdateAvailable(info.LatestVersion);
+            }
+            catch { }
+        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromHours(1));
+    }
+
+    public static void StopAutoCheck() => _checkTimer?.Dispose();
+
+    public static async Task<UpdateInfo> CheckForUpdateAsync()
+    {
+        var current = GetCurrentVersion();
+        var (latest, downloadUrl) = await GetLatestReleaseAsync();
+        return new UpdateInfo
+        {
+            CurrentVersion = current,
+            LatestVersion = latest,
+            Available = CompareVersions(latest, current) > 0,
+            DownloadUrl = downloadUrl
+        };
+    }
+
+    public static async Task<bool> DownloadAndInstallUpdateAsync(string downloadUrl, Action<double, string>? onProgress = null)
+    {
+        var platform = GetPlatformTag();
+        var zipName = $"Reficio-{platform}.zip";
+        var url = downloadUrl.Contains(zipName) ? downloadUrl : $"{downloadUrl}/{zipName}";
+
+        onProgress?.Invoke(0.1, "Descargando actualización...");
+        var tmpDir = Path.Combine(Path.GetTempPath(), "reficio_update");
+        Directory.CreateDirectory(tmpDir);
+        var zipPath = Path.Combine(tmpDir, zipName);
+
+        var response = await Http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        await using var fs = File.Create(zipPath);
+        if (totalBytes > 0)
+        {
+            var buffer = new byte[8192];
+            long read;
+            long total = 0;
+            while ((read = await stream.ReadAsync(buffer)) > 0)
+            {
+                await fs.WriteAsync(buffer.AsMemory(0, (int)read));
+                total += read;
+                onProgress?.Invoke(0.1 + 0.5 * (total / (double)totalBytes), $"Descargando... {total / 1024 / 1024:F1} MB");
+            }
+        }
+        else
+        {
+            await stream.CopyToAsync(fs);
+        }
+        fs.Close();
+
+        onProgress?.Invoke(0.6, "Extrayendo archivos...");
+        var extractDir = Path.Combine(tmpDir, "extract");
+        if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
+        ZipFile.ExtractToDirectory(zipPath, extractDir);
+
+        onProgress?.Invoke(0.8, "Instalando...");
+        var execDir = AppDomain.CurrentDomain.BaseDirectory;
+        var execPath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
+
+        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+        {
+            // Para macOS .app bundle, el ejecutable está en Contents/MacOS/
+            var appDir = FindAppBundle(execDir);
+            if (appDir != null)
+            {
+                var sourceMacOS = Path.Combine(extractDir, GetPlatformTag(), "Reficio.app", "Contents", "MacOS");
+                var destMacOS = Path.Combine(appDir, "Contents", "MacOS");
+                if (Directory.Exists(sourceMacOS))
+                    CopyDirectory(sourceMacOS, destMacOS);
+
+                var sourceRes = Path.Combine(extractDir, GetPlatformTag(), "Reficio.app", "Contents", "Resources");
+                var destRes = Path.Combine(appDir, "Contents", "Resources");
+                if (Directory.Exists(sourceRes))
+                    CopyDirectory(sourceRes, destRes);
+            }
+        }
+        else
+        {
+            // Windows: reemplazar ejecutable
+            var sourceFile = Path.Combine(extractDir, "windows-x64", "Reficio.exe");
+            if (File.Exists(sourceFile))
+            {
+                var backup = execPath + ".old";
+                try { if (File.Exists(backup)) File.Delete(backup); File.Move(execPath, backup); } catch { }
+                File.Copy(sourceFile, execPath, true);
+            }
+        }
+
+        onProgress?.Invoke(1.0, "Actualización instalada. Reinicie la aplicación.");
+        try { Directory.Delete(tmpDir, true); } catch { }
+        return true;
+    }
+
+    private static async Task<(string version, string downloadUrl)> GetLatestReleaseAsync()
+    {
+        var url = $"{ApiBaseUrl}/-/releases.json";
+        AddAuth(Http);
+        var json = await Http.GetStringAsync(url);
+        if (json.Contains("<html", StringComparison.OrdinalIgnoreCase))
+            return await GetLatestTagFallback();
+
+        var releases = JsonConvert.DeserializeObject<List<GitLabRelease>>(json);
+        if (releases == null || releases.Count == 0)
+            return await GetLatestTagFallback();
+
+        var latest = releases[0];
+        var version = latest.TagName.TrimStart('v');
+        var downloadUrl = $"{ApiBaseUrl}/-/releases/{latest.TagName}/downloads";
+
+        return (version, downloadUrl);
+    }
+
+    private static async Task<(string version, string downloadUrl)> GetLatestTagFallback()
+    {
+        var url = $"{ApiBaseUrl}/-/tags?per_page=20&orderby=created_at&sort=desc";
+        AddAuth(Http);
+        var json = await Http.GetStringAsync(url);
+        if (json.Contains("<html", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("No se pudo conectar al repositorio");
+
+        var tags = JsonConvert.DeserializeObject<List<GitLabTag>>(json);
+        if (tags == null || tags.Count == 0) throw new Exception("No se encontraron versiones");
+
+        var latest = "";
+        foreach (var tag in tags)
+        {
+            var v = tag.Name.TrimStart('v');
+            if (string.IsNullOrEmpty(latest) || CompareVersions(v, latest) > 0) latest = v;
+        }
+        return (latest, $"{ApiBaseUrl}/-/tags/v{latest}/downloads");
+    }
+
+    private static void AddAuth(HttpClient client)
+    {
+        var creds = GetAuthCredentials();
+        if (!string.IsNullOrEmpty(creds))
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes(creds)));
+    }
+
+    private static string GetPlatformTag()
+    {
+        if (OperatingSystem.IsWindows()) return "windows-x64";
+        if (OperatingSystem.IsMacOS())
+        {
+            if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64) return "macos-arm64";
+            return "macos-x64";
+        }
+        if (OperatingSystem.IsLinux()) return "linux-x64";
+        return "unknown";
+    }
+
+    private static string? FindAppBundle(string execDir)
+    {
+        var dir = execDir;
+        for (int i = 0; i < 5; i++)
+        {
+            if (dir == null) break;
+            if (dir.EndsWith(".app/Contents/MacOS") || dir.EndsWith(".app/Contents"))
+                return Path.GetDirectoryName(dir) ?? dir;
+            dir = Path.GetDirectoryName(dir);
+        }
+        return null;
+    }
+
+    private static void CopyDirectory(string source, string dest)
+    {
+        Directory.CreateDirectory(dest);
+        foreach (var file in Directory.GetFiles(source))
+            File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), true);
+        foreach (var dir in Directory.GetDirectories(source))
+            CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
+    }
+
+    private static int CompareVersions(string v1, string v2)
+    {
+        var p1 = v1.Split('.'); var p2 = v2.Split('.');
+        for (int i = 0; i < Math.Max(p1.Length, p2.Length); i++)
+        {
+            var n1 = i < p1.Length && int.TryParse(p1[i], out var a) ? a : 0;
+            var n2 = i < p2.Length && int.TryParse(p2[i], out var b) ? b : 0;
+            if (n1 > n2) return 1; if (n1 < n2) return -1;
+        }
+        return 0;
+    }
+
+    private static string? GetAuthCredentials()
+    {
+        var credPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".git-credentials");
+        if (File.Exists(credPath))
+            foreach (var line in File.ReadLines(credPath))
+                if (line.Contains("git.upc.com.mx") && line.Contains("://"))
+                { var parts = line.Split("://")[1].Split('@'); if (parts.Length == 2) return parts[0]; }
+        var u = Environment.GetEnvironmentVariable("GIT_USERNAME");
+        var p = Environment.GetEnvironmentVariable("GIT_PASSWORD");
+        return (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) ? $"{u}:{p}" : null;
+    }
+
+    private class GitLabTag { [JsonProperty("name")] public string Name { get; set; } = ""; }
+    private class GitLabRelease
+    {
+        [JsonProperty("tag_name")] public string TagName { get; set; } = "";
+        [JsonProperty("name")] public string Name { get; set; } = "";
+    }
+}

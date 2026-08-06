@@ -1,0 +1,342 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Reficio.ViewModels"
+        x:Class="Reficio.Views.MainWindow"
+        Title="Reficio — Reparador de Bases de Datos Firebird"
+        Width="960" Height="720"
+        MinWidth="800" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F6FA">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Window.Styles>
+        <!-- Button primary style -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E40AF"/>
+        </Style>
+
+        <!-- Button danger style -->
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#DC2626"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#B91C1C"/>
+        </Style>
+
+        <!-- Button secondary style -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#D1D5DB"/>
+        </Style>
+
+        <!-- Button success style -->
+        <Style Selector="Button.success">
+            <Setter Property="Background" Value="#16A34A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.success:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#15803D"/>
+        </Style>
+
+        <!-- Card border -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- Section header -->
+        <Style Selector="TextBlock.sectionHeader">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- TextBox styling -->
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+
+        <!-- TabControl styling -->
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Status Bar (Bottom) -->
+        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#E5E7EB"
+                BorderThickness="0,1,0,0" Padding="16,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding StatusText}"
+                           VerticalAlignment="Center" Foreground="#6B7280" FontSize="12"/>
+                <ProgressBar Grid.Column="1" Value="{Binding ProgressValue}" Maximum="1"
+                             Height="6" Margin="16,0" CornerRadius="3"
+                             Background="#E5E7EB" Foreground="#2563EB"/>
+                <TextBlock Grid.Column="2" Text="{Binding VersionText}"
+                           VerticalAlignment="Center" Foreground="#9CA3AF" FontSize="12"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="0" Margin="24,20,24,16">
+
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                    <Border Background="#2563EB" CornerRadius="10" Width="44" Height="44"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="R" FontSize="22" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Reficio" FontSize="22" FontWeight="Bold" Foreground="#1F2937"/>
+                        <TextBlock Text="Reparador de Bases de Datos Firebird" FontSize="12"
+                                   Foreground="#9CA3AF" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Connection Card -->
+                <Border Classes="card">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="CONEXION" Classes="sectionHeader"/>
+
+                        <!-- DB Path row -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Base de datos:" Width="110" VerticalAlignment="Center"
+                                       FontSize="13" Foreground="#374151"/>
+                            <TextBox Text="{Binding DbPath}" Width="520" Watermark="Ruta al archivo .fdb"/>
+                            <Button Content="Examinar" Classes="secondary"
+                                    Command="{Binding BrowseCommand}" Padding="14,8"/>
+                        </StackPanel>
+
+                        <!-- Credentials row -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Usuario:" Width="110" VerticalAlignment="Center"
+                                       FontSize="13" Foreground="#374151"/>
+                            <TextBox Text="{Binding User}" Width="140" Watermark="SYSDBA"/>
+                            <TextBlock Text="Contraseña:" VerticalAlignment="Center"
+                                       FontSize="13" Foreground="#374151" Margin="8,0,0,0"/>
+                            <TextBox Text="{Binding Password}" Width="140"
+                                     Watermark="••••••••" PasswordChar="•"/>
+                            <Button Content="Conectar" Classes="primary"
+                                    Command="{Binding ConnectCommand}" Padding="20,8"/>
+                        </StackPanel>
+
+                        <!-- Bin dir row -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Herramientas:" Width="110" VerticalAlignment="Center"
+                                       FontSize="13" Foreground="#374151"/>
+                            <TextBox Text="{Binding BinDir}" Width="520"
+                                     Watermark="Carpeta de gbak, gfix, gstat (opcional)"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tabs Card -->
+                <Border Classes="card" Padding="4">
+                    <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+                        <!-- Tab 1: Reparación -->
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Reparar" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <DockPanel Margin="0,8">
+                                <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+                                    <!-- Row 1: Diagnóstico y reparación -->
+                                    <TextBlock Text="Herramientas de reparación" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="#6B7280"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Diagnosticar" Classes="secondary"
+                                                Command="{Binding DiagnosticarAsyncCommand}" Padding="16,8"/>
+                                        <Button Content="Reparar Ligero" Classes="secondary"
+                                                Command="{Binding RepararLigeroAsyncCommand}" Padding="16,8"/>
+                                        <Button Content="Reparar Profundo" Classes="danger"
+                                                Command="{Binding RepararProfundoAsyncCommand}" Padding="16,8"/>
+                                    </StackPanel>
+                                    <!-- Row 2: Mantenimiento -->
+                                    <TextBlock Text="Mantenimiento" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="#6B7280" Margin="0,4,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Verificar" Classes="success"
+                                                Command="{Binding VerificarAsyncCommand}" Padding="16,8"/>
+                                        <Button Content="Limpiar basura" Classes="secondary"
+                                                Command="{Binding SweepAsyncCommand}" Padding="16,8"/>
+                                        <Button Content="Backup" Classes="secondary"
+                                                Command="{Binding SoloBackupAsyncCommand}" Padding="16,8"/>
+                                        <Button Content="NBackup" Classes="secondary"
+                                                Command="{Binding NBackupAsyncCommand}" Padding="16,8"/>
+                                    </StackPanel>
+                                    <!-- Row 3: Utilidades -->
+                                    <TextBlock Text="Utilidades" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="#6B7280" Margin="0,4,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Actualizar ODS" Classes="secondary"
+                                                Command="{Binding UpgradeODSAsyncCommand}" Padding="16,8"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border Background="#F9FAFB" CornerRadius="8" Padding="2"
+                                        BorderBrush="#E5E7EB" BorderThickness="1">
+                                    <TextBox Text="{Binding LogText}" IsReadOnly="True"
+                                             TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                                             Background="Transparent" BorderThickness="0"
+                                             MinHeight="280"/>
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <!-- Tab 2: Factura -->
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Factura (DINGR)" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <DockPanel Margin="0,8">
+                                <StackPanel DockPanel.Dock="Top">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                                        <TextBlock Text="CODI:" VerticalAlignment="Center"
+                                                   FontSize="13" Foreground="#374151"/>
+                                        <TextBox Text="{Binding FacturaCodi}" Width="320"
+                                                 Watermark="Ingrese código de factura"/>
+                                        <Button Content="Buscar" Classes="primary"
+                                                Command="{Binding SearchFacturaCommand}" Padding="16,8"/>
+                                        <Button Content="Limpiar" Classes="secondary"
+                                                Command="{Binding ClearFacturaCommand}" Padding="16,8"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                                            Spacing="16" Margin="0,10,0,0">
+                                    <Button Content="Editar registro" Classes="primary"
+                                            Command="{Binding EditFacturaCommand}" Padding="20,8"/>
+                                    <TextBlock Text="{Binding FacturaCount}" VerticalAlignment="Center"
+                                               Foreground="#6B7280" FontSize="13"/>
+                                    <TextBlock Text="{Binding FacturaStatus}" VerticalAlignment="Center"
+                                               Foreground="#9CA3AF" FontSize="13"/>
+                                </StackPanel>
+                                <Border Background="#F9FAFB" CornerRadius="8" Padding="2"
+                                        BorderBrush="#E5E7EB" BorderThickness="1">
+                                    <DataGrid ItemsSource="{Binding FacturaRecords}"
+                                              SelectedIndex="{Binding FacturaSelectedIndex}"
+                                              AutoGenerateColumns="False" IsReadOnly="True"
+                                              CanUserResizeColumns="True"
+                                              GridLinesVisibility="Horizontal"
+                                              BorderThickness="0"
+                                              Background="Transparent">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="CODI" Binding="{Binding [CODI]}" Width="120"/>
+                                            <DataGridTextColumn Header="Nombre" Binding="{Binding [NOMBRECI]}" Width="*"/>
+                                            <DataGridTextColumn Header="Uso CFDI" Binding="{Binding [USOCFDI]}" Width="120"/>
+                                            <DataGridTextColumn Header="Reg. Fiscal" Binding="{Binding [REGIFISC]}" Width="120"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <!-- Tab 3: Paciente -->
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Paciente (MPACI)" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <DockPanel Margin="0,8">
+                                <StackPanel DockPanel.Dock="Top">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                                        <TextBlock Text="CODI:" VerticalAlignment="Center"
+                                                   FontSize="13" Foreground="#374151"/>
+                                        <TextBox Text="{Binding PacienteCodi}" Width="140"
+                                                 Watermark="Código"/>
+                                        <TextBlock Text="Nombre:" VerticalAlignment="Center"
+                                                   FontSize="13" Foreground="#374151"/>
+                                        <TextBox Text="{Binding PacienteNomb}" Width="200"
+                                                 Watermark="Nombre del paciente"/>
+                                        <Button Content="Buscar" Classes="primary"
+                                                Command="{Binding SearchPacienteCommand}" Padding="16,8"/>
+                                        <Button Content="Limpiar" Classes="secondary"
+                                                Command="{Binding ClearPacienteCommand}" Padding="16,8"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                                            Spacing="16" Margin="0,10,0,0">
+                                    <Button Content="Editar registro" Classes="primary"
+                                            Command="{Binding EditPacienteCommand}" Padding="20,8"/>
+                                    <TextBlock Text="{Binding PacienteCount}" VerticalAlignment="Center"
+                                               Foreground="#6B7280" FontSize="13"/>
+                                    <TextBlock Text="{Binding PacienteStatus}" VerticalAlignment="Center"
+                                               Foreground="#9CA3AF" FontSize="13"/>
+                                </StackPanel>
+                                <Border Background="#F9FAFB" CornerRadius="8" Padding="2"
+                                        BorderBrush="#E5E7EB" BorderThickness="1">
+                                    <DataGrid ItemsSource="{Binding PacienteRecords}"
+                                              SelectedIndex="{Binding PacienteSelectedIndex}"
+                                              AutoGenerateColumns="False" IsReadOnly="True"
+                                              CanUserResizeColumns="True"
+                                              GridLinesVisibility="Horizontal"
+                                              BorderThickness="0"
+                                              Background="Transparent">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="CODI" Binding="{Binding [CODI]}" Width="120"/>
+                                            <DataGridTextColumn Header="Nombre" Binding="{Binding [NOMBPACI]}" Width="*"/>
+                                            <DataGridTextColumn Header="P. Apellido" Binding="{Binding [PATE]}" Width="140"/>
+                                            <DataGridTextColumn Header="M. Apellido" Binding="{Binding [MATE]}" Width="140"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+                    </TabControl>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

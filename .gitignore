@@ -1,0 +1,7 @@
+reficio
+reficio.exe
+*.fbk
+*.log
+.DS_Store
+.idea/
+.vscode/
