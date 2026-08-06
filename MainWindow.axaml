@@ -166,6 +166,8 @@
                                      Watermark="••••••••" PasswordChar="•"/>
                             <Button Content="Conectar" Classes="primary"
                                     Command="{Binding ConnectCommand}" Padding="20,8"/>
+                            <Button Content="Desconectar" Classes="secondary"
+                                    Command="{Binding DisconnectCommand}" Padding="20,8"/>
                         </StackPanel>
 
                         <!-- Bin dir row -->

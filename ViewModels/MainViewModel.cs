@@ -128,9 +128,23 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex) { StatusText = "Error de conexión"; ShowError(window, $"Error: {ex.Message}"); }
     }
 
+    [RelayCommand] private void Disconnect() => DisconnectDatabase();
+
+    private void DisconnectDatabase()
+    {
+        try { _db?.Dispose(); } catch { }
+        _db = null;
+        _facturaModule = null;
+        _pacienteModule = null;
+        FacturaStatus = "Conecte a una BD"; FacturaRecords.Clear(); FacturaSelectedIndex = -1; FacturaCount = "0 registros";
+        PacienteStatus = "Conecte a una BD"; PacienteRecords.Clear(); PacienteSelectedIndex = -1; PacienteCount = "0 registros";
+        AppendLog("Base de datos desconectada");
+    }
+
     [RelayCommand] private async Task DiagnosticarAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Diagnosticar la base de datos?")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.Diagnosticar(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
@@ -139,6 +153,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task RepararLigeroAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Ejecutar reparación ligera?")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.RepararLigero(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
@@ -147,6 +162,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task RepararProfundoAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Ejecutar reparación profunda? Se creará un backup y la BD original será renombrada.")) return;
         SetRunning(true);
         Task.Run(() =>
@@ -169,6 +185,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task SoloBackupAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Crear backup de la base de datos?")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.SoloBackup(BinDir, DbPath, User, Password, $"{DbPath}.{DateTime.Now:yyyyMMdd_HHmmss}.fbk", UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
@@ -177,6 +194,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task VerificarAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Verificar integridad de la base de datos?")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.VerificarIntegridad(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
@@ -185,6 +203,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task SweepAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Ejecutar limpieza (sweep) de la base de datos?")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.Sweep(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
@@ -193,6 +212,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task NBackupAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Crear backup NBackup de la base de datos?")) return;
         SetRunning(true);
         Task.Run(() => {
@@ -210,6 +230,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private async Task UpgradeODSAsync()
     {
         if (!ValidateDb()) return;
+        DisconnectDatabase();
         if (!await ConfirmAsync("¿Actualizar ODS de la base de datos? Esta operación es irreversible.")) return;
         SetRunning(true);
         Task.Run(() => { try { var r = FirebirdTools.UpgradeODS(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });

@@ -1,6 +1,8 @@
 # Version
 
 ## 1.4.2 - Agosto 2026 (en preparación)
+- Agregado botón "Desconectar" para cerrar la conexión a la base de datos y liberar el archivo .fdb antes de aplicar reparaciones (evita el error "base de datos en uso por otro programa").
+- Las operaciones de reparación/mantenimiento desconectan automáticamente la BD antes de ejecutar gbak/gfix, y luego retoman con la ruta indicada.
 - Agregado botón "Examinar" en la fila "Herramientas" para seleccionar la carpeta de gbak/gfix/gstat mediante selector de carpetas.
 - Actualizador: el auto-check ya no falla en silencio; si no puede consultar git, registra el error en el log y lo indica en la barra de estado (e.g. "sin token de git").
 - Añadido `Reficio_setup_creds.sh` (macOS) para configurar el Personal Access Token de GitLab en `~/.git-credentials`, equivalente al `.bat` de Windows.
