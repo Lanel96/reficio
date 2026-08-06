@@ -25,14 +25,22 @@ public partial class LoginViewModel : ObservableObject
     [RelayCommand]
     private async Task BrowseAsync()
     {
-        if (_window == null) return;
-        var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        if (_window == null) { StatusText = "Error: ventana no disponible"; HasError = true; return; }
+        try
         {
-            Title = "Seleccionar base de datos Firebird",
-            AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("Firebird Database") { Patterns = new[] { "*.fdb", "*.FDB" } } }
-        });
-        if (files.Count > 0) DbPath = files[0].Path.LocalPath;
+            var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Seleccionar base de datos Firebird",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { new FilePickerFileType("Firebird Database") { Patterns = new[] { "*.fdb", "*.FDB" } } }
+            });
+            if (files.Count > 0) DbPath = files[0].Path.LocalPath;
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Error al abrir explorador: {ex.Message}";
+            HasError = true;
+        }
     }
 
     [RelayCommand]
