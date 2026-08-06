@@ -46,20 +46,6 @@
     <AvaloniaResource Include="Resources\icon\**" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Resources\Views\EditDialog.axaml.cs">
-      <DependentUpon>EditDialog.axaml</DependentUpon>
-    </Compile>
-    <Compile Update="Resources\Views\LoginWindow.axaml.cs">
-      <DependentUpon>LoginWindow.axaml</DependentUpon>
-    </Compile>
-  </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Properties\MainWindow.axaml.cs">
-      <DependentUpon>MainWindow.axaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-  </ItemGroup>
 
 </Project>
