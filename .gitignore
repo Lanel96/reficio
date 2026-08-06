@@ -5,6 +5,7 @@ reficio.exe
 ## .NET
 bin/
 obj/
+publish/
 *.user
 *.suo
 *.userosscache
