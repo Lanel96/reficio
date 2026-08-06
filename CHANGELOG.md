@@ -1,5 +1,11 @@
 # Version
 
+## 1.4.2 - Agosto 2026 (en preparación)
+- Agregado botón "Examinar" en la fila "Herramientas" para seleccionar la carpeta de gbak/gfix/gstat mediante selector de carpetas.
+- Actualizador: el auto-check ya no falla en silencio; si no puede consultar git, registra el error en el log y lo indica en la barra de estado (e.g. "sin token de git").
+- Añadido `Reficio_setup_creds.sh` (macOS) para configurar el Personal Access Token de GitLab en `~/.git-credentials`, equivalente al `.bat` de Windows.
+- Nota: la revisión de actualizaciones requiere un token de GitLab con scope `api`; sin él la API privada devuelve 401/404.
+
 ## 1.4.1 - Agosto 2026
 - Corregido el módulo Reparar: los botones estaban deshabilitados porque usaban nombres de comando inexistentes (sufijo "Async" innecesario). Ahora todas las opciones están habilitadas.
 - Actualizador: ahora consulta el tag más reciente del repositorio git (reficiov2@git.upc.com.mx) y descarga la versión publicada desde el registro de paquetes de git.

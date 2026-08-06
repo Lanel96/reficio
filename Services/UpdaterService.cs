@@ -26,7 +26,7 @@ public static class UpdaterService
         return File.Exists(path) ? File.ReadAllText(path).Trim() : "0.0.0";
     }
 
-    public static void StartAutoCheck(Action<string> onUpdateAvailable)
+    public static void StartAutoCheck(Action<string> onUpdateAvailable, Action<string>? onError = null)
     {
         _checkTimer?.Dispose();
         _checkTimer = new Timer(async _ =>
@@ -37,7 +37,10 @@ public static class UpdaterService
                 if (info.Available)
                     onUpdateAvailable(info.LatestVersion);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                onError?.Invoke(ex.Message);
+            }
         }, null, TimeSpan.FromSeconds(10), TimeSpan.FromHours(1));
     }
 

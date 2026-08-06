@@ -70,6 +70,13 @@ public partial class MainViewModel : ObservableObject
                 UpdateVersion = newVersion;
                 StatusText = $"Nueva versión disponible: v{newVersion}";
             });
+        }, error =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                AppendLog($"No se pudo consultar actualizaciones: {error}");
+                StatusText = "Revisión de actualizaciones falló (sin token de git)";
+            });
         });
     }
 
