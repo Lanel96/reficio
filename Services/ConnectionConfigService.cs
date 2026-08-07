@@ -21,7 +21,25 @@ public static class ConnectionConfigService
         try
         {
             if (File.Exists(ConfigPath))
-                return JsonConvert.DeserializeObject<DbConnectionConfig>(File.ReadAllText(ConfigPath));
+            {
+                var raw = File.ReadAllText(ConfigPath);
+                if (ConfigCrypto.IsEncrypted(raw))
+                {
+                    var decrypted = ConfigCrypto.Decrypt(raw);
+                    if (decrypted != null)
+                        return JsonConvert.DeserializeObject<DbConnectionConfig>(decrypted);
+                }
+                else if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    // Migración: conexión antigua en texto plano -> se re-guarda encriptada.
+                    var legacy = JsonConvert.DeserializeObject<DbConnectionConfig>(raw);
+                    if (legacy != null)
+                    {
+                        Save(legacy);
+                        return legacy;
+                    }
+                }
+            }
         }
         catch { }
         return null;
@@ -32,7 +50,7 @@ public static class ConnectionConfigService
         try
         {
             Directory.CreateDirectory(ConfigDir);
-            File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(config, Formatting.Indented));
+            File.WriteAllText(ConfigPath, ConfigCrypto.Encrypt(JsonConvert.SerializeObject(config)));
             if (!OperatingSystem.IsWindows())
             {
                 try { File.SetUnixFileMode(ConfigPath, UnixFileMode.UserRead | UnixFileMode.UserWrite); } catch { }

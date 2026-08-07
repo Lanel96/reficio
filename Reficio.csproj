@@ -10,7 +10,7 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>Reficio</AssemblyName>
     <RootNamespace>Reficio</RootNamespace>
-    <Version>1.4.6</Version>
+    <Version>1.4.7</Version>
     <NoWarn>NU1903</NoWarn>
   </PropertyGroup>
 

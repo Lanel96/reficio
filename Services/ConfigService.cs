@@ -13,7 +13,25 @@ public static class ConfigService
         try
         {
             if (File.Exists(ConfigPath))
-                return JsonConvert.DeserializeObject<AppConfig>(File.ReadAllText(ConfigPath)) ?? new AppConfig();
+            {
+                var raw = File.ReadAllText(ConfigPath);
+                if (ConfigCrypto.IsEncrypted(raw))
+                {
+                    var decrypted = ConfigCrypto.Decrypt(raw);
+                    if (decrypted != null)
+                        return JsonConvert.DeserializeObject<AppConfig>(decrypted) ?? new AppConfig();
+                }
+                else if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    // Migración: config antigua en texto plano -> se re-guarda encriptada.
+                    var legacy = JsonConvert.DeserializeObject<AppConfig>(raw);
+                    if (legacy != null)
+                    {
+                        Save(legacy);
+                        return legacy;
+                    }
+                }
+            }
         }
         catch { }
         return new AppConfig();
@@ -24,7 +42,7 @@ public static class ConfigService
         try
         {
             Directory.CreateDirectory(ConfigDir);
-            File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(config, Formatting.Indented));
+            File.WriteAllText(ConfigPath, ConfigCrypto.Encrypt(JsonConvert.SerializeObject(config)));
         }
         catch { }
     }
