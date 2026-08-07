@@ -20,6 +20,12 @@ $DOTNET publish Reficio.csproj -c Release -r win-x64 \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
   -o "$PUBLISH_DIR/windows-x64"
+$DOTNET publish ReficioUpdater/ReficioUpdater.csproj -c Release -r win-x64 \
+  --self-contained true \
+  -p:PublishSingleFile=true \
+  -o "$PUBLISH_DIR/windows-x64/ReficioUpdater" >/dev/null
+mv "$PUBLISH_DIR/windows-x64/ReficioUpdater/ReficioUpdater.exe" "$PUBLISH_DIR/windows-x64/ReficioUpdater.exe"
+rm -rf "$PUBLISH_DIR/windows-x64/ReficioUpdater"
 
 echo "[2/4] Compilando para macOS Intel (osx-x64)..."
 $DOTNET publish Reficio.csproj -c Release -r osx-x64 \
@@ -96,6 +102,22 @@ PLIST
 
 create_app_bundle "$PUBLISH_DIR/macos-x64"
 create_app_bundle "$PUBLISH_DIR/macos-arm64"
+
+# Compilar el actualizador para macOS y colocarlo en el bundle (Contents/MacOS/ReficioUpdater)
+build_updater_macos() {
+  local RID="$1"
+  local APP_MACOS="$2"
+  $DOTNET publish ReficioUpdater/ReficioUpdater.csproj -c Release -r "$RID" \
+    --self-contained true \
+    -p:PublishSingleFile=true \
+    -o "$PUBLISH_DIR/updater_$RID" >/dev/null
+  cp "$PUBLISH_DIR/updater_$RID/ReficioUpdater" "$APP_MACOS/ReficioUpdater"
+  chmod +x "$APP_MACOS/ReficioUpdater"
+  rm -rf "$PUBLISH_DIR/updater_$RID"
+}
+
+build_updater_macos osx-x64 "$PUBLISH_DIR/macos-x64/Reficio.app/Contents/MacOS"
+build_updater_macos osx-arm64 "$PUBLISH_DIR/macos-arm64/Reficio.app/Contents/MacOS"
 
 echo "Empaquetando ZIPs..."
 cd "$PUBLISH_DIR"

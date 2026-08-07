@@ -10,7 +10,7 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>Reficio</AssemblyName>
     <RootNamespace>Reficio</RootNamespace>
-    <Version>1.4.7</Version>
+    <Version>1.4.8</Version>
     <NoWarn>NU1903</NoWarn>
   </PropertyGroup>
 
@@ -54,6 +54,11 @@
     <AvaloniaResource Include="Resources\icon\**" />
   </ItemGroup>
 
-
+  <ItemGroup>
+    <Compile Remove="ReficioUpdater\**" />
+    <EmbeddedResource Remove="ReficioUpdater\**" />
+    <None Remove="ReficioUpdater\**" />
+    <Content Remove="ReficioUpdater\**" />
+  </ItemGroup>
 
 </Project>

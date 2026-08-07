@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -81,88 +80,49 @@ public static class UpdaterService
         };
     }
 
-    public static async Task<bool> DownloadAndInstallUpdateAsync(string downloadUrl, Action<double, string>? onProgress = null)
+    // Lanza el subprograma ReficioUpdater.exe para descargar e instalar la actualización.
+    // Así la app principal nunca se reemplaza a sí misma en caliente (evita bloqueos y
+    // fallos que comprometan el programa).
+    public static bool LaunchUpdater(string downloadUrl, out string error)
     {
-        var platform = GetPlatformTag();
-        var zipName = $"Reficio-{platform}.zip";
-
-        onProgress?.Invoke(0.1, "Descargando actualización...");
-        var tmpDir = Path.Combine(Path.GetTempPath(), "reficio_update");
-        Directory.CreateDirectory(tmpDir);
-        var zipPath = Path.Combine(tmpDir, zipName);
-
+        error = "";
         try
         {
-            var token = GetAuthToken();
-            try { DebugLog($"Descarga: url={downloadUrl} tokenhash={TokenHash(token)}"); } catch { }
-            var response = await GetWithRetryAsync(downloadUrl, acceptOctetStream: true);
-            DebugLog($"Descarga status: {(int)response.StatusCode}");
-            response.EnsureSuccessStatusCode();
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        await using var stream = await response.Content.ReadAsStreamAsync();
-        await using var fs = File.Create(zipPath);
-        if (totalBytes > 0)
-        {
-            var buffer = new byte[8192];
-            long read;
-            long total = 0;
-            while ((read = await stream.ReadAsync(buffer)) > 0)
+            var execDir = AppDomain.CurrentDomain.BaseDirectory;
+            var updaterPath = Path.Combine(execDir, OperatingSystem.IsWindows() ? "ReficioUpdater.exe" : "ReficioUpdater");
+
+            if (!File.Exists(updaterPath))
             {
-                await fs.WriteAsync(buffer.AsMemory(0, (int)read));
-                total += read;
-                onProgress?.Invoke(0.1 + 0.5 * (total / (double)totalBytes), $"Descargando... {total / 1024 / 1024:F1} MB");
+                error = $"no se encontró el actualizador ({Path.GetFileName(updaterPath)}). Reinstale la aplicación.";
+                DebugLog($"Falta actualizador: {updaterPath}");
+                return false;
             }
-        }
-        else
-        {
-            await stream.CopyToAsync(fs);
-        }
-        fs.Close();
 
-        onProgress?.Invoke(0.6, "Extrayendo archivos...");
-        var extractDir = Path.Combine(tmpDir, "extract");
-        if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
-        ZipFile.ExtractToDirectory(zipPath, extractDir);
+            var exeName = OperatingSystem.IsWindows() ? "Reficio.exe"
+                : Path.GetFileName(Environment.ProcessPath ?? "Reficio");
 
-        onProgress?.Invoke(0.8, "Instalando...");
-        var execDir = AppDomain.CurrentDomain.BaseDirectory;
-        var execPath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
-
-        if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
-        {
-            // Para macOS .app bundle, el ejecutable está en Contents/MacOS/
-            var appDir = FindAppBundle(execDir);
-            if (appDir != null)
+            var psi = new ProcessStartInfo
             {
-                var sourceMacOS = Path.Combine(extractDir, GetPlatformTag(), "Reficio.app", "Contents", "MacOS");
-                var destMacOS = Path.Combine(appDir, "Contents", "MacOS");
-                if (Directory.Exists(sourceMacOS))
-                    CopyDirectory(sourceMacOS, destMacOS);
+                FileName = updaterPath,
+                WorkingDirectory = execDir,
+                UseShellExecute = false
+            };
+            psi.ArgumentList.Add("--url");
+            psi.ArgumentList.Add(downloadUrl);
+            psi.ArgumentList.Add("--dir");
+            psi.ArgumentList.Add(execDir);
+            psi.ArgumentList.Add("--exe");
+            psi.ArgumentList.Add(exeName);
 
-                var sourceRes = Path.Combine(extractDir, GetPlatformTag(), "Reficio.app", "Contents", "Resources");
-                var destRes = Path.Combine(appDir, "Contents", "Resources");
-                if (Directory.Exists(sourceRes))
-                    CopyDirectory(sourceRes, destRes);
-            }
-        }
-        else
-        {
-            // Windows: reemplazar ejecutable
-            var sourceFile = Path.Combine(extractDir, "windows-x64", "Reficio.exe");
-            if (File.Exists(sourceFile))
-            {
-                var backup = execPath + ".old";
-                try { if (File.Exists(backup)) File.Delete(backup); File.Move(execPath, backup); } catch { }
-                File.Copy(sourceFile, execPath, true);
-            }
-        }
-
-        onProgress?.Invoke(1.0, "Actualización instalada. Reinicie la aplicación.");
+            Process.Start(psi);
+            DebugLog($"Actualizador lanzado: {updaterPath} url={downloadUrl}");
             return true;
         }
-        finally
+        catch (Exception ex)
         {
-            try { Directory.Delete(tmpDir, true); } catch { }
+            error = ex.Message;
+            DebugLog($"Error lanzando actualizador: {ex.Message}");
+            return false;
         }
     }
 
@@ -222,28 +182,6 @@ public static class UpdaterService
         }
         if (OperatingSystem.IsLinux()) return "linux-x64";
         return "unknown";
-    }
-
-    private static string? FindAppBundle(string execDir)
-    {
-        var dir = execDir;
-        for (int i = 0; i < 5; i++)
-        {
-            if (dir == null) break;
-            if (dir.EndsWith(".app/Contents/MacOS") || dir.EndsWith(".app/Contents"))
-                return Path.GetDirectoryName(dir) ?? dir;
-            dir = Path.GetDirectoryName(dir);
-        }
-        return null;
-    }
-
-    private static void CopyDirectory(string source, string dest)
-    {
-        Directory.CreateDirectory(dest);
-        foreach (var file in Directory.GetFiles(source))
-            File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), true);
-        foreach (var dir in Directory.GetDirectories(source))
-            CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
     }
 
     private static int CompareVersions(string v1, string v2)

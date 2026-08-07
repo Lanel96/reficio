@@ -362,19 +362,16 @@ public partial class MainViewModel : ObservableObject
                 Padding = new Thickness(20, 8),
                 CornerRadius = new Avalonia.CornerRadius(6)
             };
-            btnYes.Click += async (_, _) =>
+            btnYes.Click += (_, _) =>
             {
                 confirm.Close();
-                try
+                if (!UpdaterService.LaunchUpdater(info.DownloadUrl, out var launchError))
                 {
-                    await UpdaterService.DownloadAndInstallUpdateAsync(info.DownloadUrl, (p, m) =>
-                    {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusText = m);
-                    });
-                    StatusText = "Actualización instalada. Reinicie la app.";
-                    UpdateAvailable = false;
+                    StatusText = $"Error: {launchError}";
+                    return;
                 }
-                catch (Exception ex) { StatusText = $"Error: {ex.Message}"; }
+                // La app se cierra; el subprograma ReficioUpdater instala y relanza.
+                GetWindow()?.Close();
             };
             btnNo.Click += (_, _) => confirm.Close();
             confirm.Content = new StackPanel
