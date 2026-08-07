@@ -93,11 +93,11 @@ public static class UpdaterService
 
         try
         {
-        var token = GetAuthToken();
-        try { DebugLog($"Descarga: url={downloadUrl} tokenhash={TokenHash(token)}"); } catch { }
-        var response = await GetWithRetryAsync(downloadUrl);
-        DebugLog($"Descarga status: {(int)response.StatusCode}");
-        response.EnsureSuccessStatusCode();
+            var token = GetAuthToken();
+            try { DebugLog($"Descarga: url={downloadUrl} tokenhash={TokenHash(token)}"); } catch { }
+            var response = await GetWithRetryAsync(downloadUrl, acceptOctetStream: true);
+            DebugLog($"Descarga status: {(int)response.StatusCode}");
+            response.EnsureSuccessStatusCode();
         var totalBytes = response.Content.Headers.ContentLength ?? -1L;
         await using var stream = await response.Content.ReadAsStreamAsync();
         await using var fs = File.Create(zipPath);
@@ -205,10 +205,11 @@ public static class UpdaterService
 
         var fileName = $"Reficio-{GetPlatformTag()}.zip";
         var asset = release.Assets?.FirstOrDefault(a => a.Name == fileName);
-        if (asset == null || string.IsNullOrEmpty(asset.DownloadUrl))
+        if (asset == null || string.IsNullOrEmpty(asset.ApiUrl))
             throw new Exception($"No se encontró el instalador '{fileName}' en la Release v{latest}");
 
-        return (latest, asset.DownloadUrl);
+        // Repos privados: se debe descargar vía la API del asset con Accept: application/octet-stream.
+        return (latest, asset.ApiUrl);
     }
 
     private static string GetPlatformTag()
@@ -287,7 +288,7 @@ public static class UpdaterService
     }
 
     // Reintenta ante fallos transitorios (401/429/5xx o de red) manteniendo la URL y token válidos.
-    private static async Task<HttpResponseMessage> GetWithRetryAsync(string url, int maxAttempts = 4)
+    private static async Task<HttpResponseMessage> GetWithRetryAsync(string url, bool acceptOctetStream = false, int maxAttempts = 4)
     {
         HttpResponseMessage? last = null;
         for (int i = 1; i <= maxAttempts; i++)
@@ -296,6 +297,8 @@ public static class UpdaterService
             {
                 AddAuth(Http, GetAuthToken());
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (acceptOctetStream)
+                    request.Headers.TryAddWithoutValidation("Accept", "application/octet-stream");
                 var response = await Http.SendAsync(request);
                 var code = (int)response.StatusCode;
                 if (code == 200) return response;
@@ -331,6 +334,6 @@ public static class UpdaterService
     private class GitHubAsset
     {
         [JsonProperty("name")] public string Name { get; set; } = "";
-        [JsonProperty("browser_download_url")] public string DownloadUrl { get; set; } = "";
+        [JsonProperty("url")] public string ApiUrl { get; set; } = "";
     }
 }
