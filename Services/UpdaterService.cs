@@ -213,10 +213,16 @@ public static class UpdaterService
             foreach (var line in File.ReadLines(credPath))
                 if (line.Contains(GitHost) && line.Contains("://"))
                 {
-                    var parts = line.Split("://")[1].Split('@');
-                    if (parts.Length != 2) continue;
-                    var creds = parts[0].Split(':');
-                    if (creds.Length == 2) return creds[1];
+                    var idx = line.IndexOf("://", StringComparison.Ordinal);
+                    if (idx < 0) continue;
+                    var rest = line.Substring(idx + 3);
+                    var at = rest.LastIndexOf('@');
+                    if (at <= 0) continue;
+                    var userinfo = rest.Substring(0, at);
+                    var colon = userinfo.IndexOf(':');
+                    if (colon < 0) continue;
+                    var token = userinfo.Substring(colon + 1);
+                    if (!string.IsNullOrEmpty(token)) return token;
                 }
         var u = Environment.GetEnvironmentVariable("GIT_USERNAME");
         var p = Environment.GetEnvironmentVariable("GIT_PASSWORD");
