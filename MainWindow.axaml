@@ -221,10 +221,13 @@
                                 </StackPanel>
                                 <Border Background="#F9FAFB" CornerRadius="8" Padding="2"
                                         BorderBrush="#E5E7EB" BorderThickness="1">
-                                    <TextBox Text="{Binding LogText}" IsReadOnly="True"
-                                             TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
-                                             Background="Transparent" BorderThickness="0"
-                                             MinHeight="280"/>
+                                    <ScrollViewer Height="280" HorizontalScrollBarVisibility="Disabled"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <TextBox Text="{Binding LogText}" IsReadOnly="True"
+                                                 TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 MaxWidth="Infinity"/>
+                                    </ScrollViewer>
                                 </Border>
                             </DockPanel>
                         </TabItem>

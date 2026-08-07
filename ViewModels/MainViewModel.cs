@@ -84,7 +84,7 @@ public partial class MainViewModel : ObservableObject
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 AppendLog($"No se pudo consultar actualizaciones: {error}");
-                StatusText = "Revisión de actualizaciones falló (sin token de git)";
+                StatusText = $"Revisión de actualizaciones falló: {error}";
             });
         });
     }
@@ -270,20 +270,16 @@ public partial class MainViewModel : ObservableObject
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Migrar la base de datos de Firebird 3.0 a 4.0 (ODS 12 → 13)?\nSe creará un backup y una nueva base sin modificar la original.")) { Reconnect(); return; }
+        if (!await ConfirmAsync("¿Migrar la base de datos de Firebird 3.0 a 4.0 (ODS 12 → 13)?\nSe generará un backup (la restauración la hará usted con Firebird 4.0).")) { Reconnect(); return; }
         SetRunning(true);
         Task.Run(() =>
         {
             try
             {
                 var ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                var ext = Path.GetExtension(DbPath);
-                var basePath = DbPath[..^ext.Length];
                 var backupPath = $"{DbPath}.{ts}.fbk";
-                var newDbPath = $"{basePath}_ODS4{ext}";
                 AppendLog($"Backup: {backupPath}");
-                AppendLog($"Nueva base (ODS 4.0): {newDbPath}");
-                var r = FirebirdTools.MigrarODS(BinDir, DbPath, User, Password, backupPath, newDbPath, UpdateProgress);
+                var r = FirebirdTools.MigrarODS(BinDir, DbPath, User, Password, backupPath, UpdateProgress);
                 AppendLogResult(r);
             }
             finally { RepairFinished(); }

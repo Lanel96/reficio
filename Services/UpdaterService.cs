@@ -15,6 +15,9 @@ public static class UpdaterService
     private const string GitProject = "luisleon%2Freficiov2";
     private const string PackageName = "reficio";
     private const string ApiBaseUrl = $"https://{GitHost}/api/v4/projects/{GitProject}";
+    // Token por defecto para que la actualización funcione sin configurar credenciales.
+    // Se puede sobreescribir guardando otro token en ~/.git-credentials o en GIT_PASSWORD.
+    private const string DefaultToken = "glpat-lttnfr6GIFgy5ZxWyhuJcm86MQp1OjEwCA.01.0y17plojr";
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private static Timer? _checkTimer;
 
@@ -69,6 +72,7 @@ public static class UpdaterService
         Directory.CreateDirectory(tmpDir);
         var zipPath = Path.Combine(tmpDir, zipName);
 
+        AddAuth(Http, GetAuthToken());
         var response = await Http.GetAsync(downloadUrl);
         response.EnsureSuccessStatusCode();
         var totalBytes = response.Content.Headers.ContentLength ?? -1L;
@@ -138,9 +142,23 @@ public static class UpdaterService
     private static async Task<(string version, string downloadUrl)> GetLatestReleaseAsync()
     {
         // Utiliza el tag más reciente publicado en git como versión disponible.
+        var token = GetAuthToken();
+        if (string.IsNullOrEmpty(token))
+            throw new Exception(
+                "no hay credenciales configuradas (archivo .git-credentials). Ejecute Reficio_setup_creds.bat");
+
         var url = $"{ApiBaseUrl}/repository/tags?per_page=100&order=desc";
-        AddAuth(Http);
-        var json = await Http.GetStringAsync(url);
+        AddAuth(Http, token);
+        string json;
+        try
+        {
+            json = await Http.GetStringAsync(url);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            throw new Exception("el token de git es inválido o el proyecto no es accesible (404)", ex);
+        }
+
         var tags = JsonConvert.DeserializeObject<List<GitLabTag>>(json);
         if (tags == null || tags.Count == 0)
             throw new Exception("No se encontraron versiones publicadas en el repositorio git");
@@ -218,20 +236,19 @@ public static class UpdaterService
                     var rest = line.Substring(idx + 3);
                     var at = rest.LastIndexOf('@');
                     if (at <= 0) continue;
-                    var userinfo = rest.Substring(0, at);
+                    var userinfo = rest.Substring(0, at);   // "usuario:token" o solo "token"
                     var colon = userinfo.IndexOf(':');
-                    if (colon < 0) continue;
-                    var token = userinfo.Substring(colon + 1);
+                    var token = colon >= 0 ? userinfo.Substring(colon + 1) : userinfo;
                     if (!string.IsNullOrEmpty(token)) return token;
                 }
         var u = Environment.GetEnvironmentVariable("GIT_USERNAME");
         var p = Environment.GetEnvironmentVariable("GIT_PASSWORD");
-        return (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) ? p : null;
+        if (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) return p;
+        return DefaultToken;
     }
 
-    private static void AddAuth(HttpClient client)
+    private static void AddAuth(HttpClient client, string token)
     {
-        var token = GetAuthToken();
         if (!string.IsNullOrEmpty(token))
             client.DefaultRequestHeaders.TryAddWithoutValidation("PRIVATE-TOKEN", token);
     }
