@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-GIT_HOST="git.upc.com.mx"
+GIT_HOST="github.com"
 echo "========================================="
 echo "  CONFIGURAR CREDENCIALES DE ACTUALIZACION"
 echo "========================================="
 echo
 echo "Requisitos:"
-echo "  - Crear un Personal Access Token en:"
-echo "    https://$GIT_HOST/-/user_settings/personal_access_tokens"
-echo "    con scope: 'api' (o al menos 'read_api')"
+echo "  - Crear un Personal Access Token (PAT) en:"
+echo "    https://github.com/settings/tokens"
+echo "    con scope: 'repo'"
 echo
-read -r -p "Usuario de GitLab (ej. luis.escalante@upc.com.mx): " USUARIO
+read -r -p "Usuario de GitHub (ej. Lanel96): " USUARIO
 read -r -s -p "Token de acceso: " TOKEN
 echo
 echo

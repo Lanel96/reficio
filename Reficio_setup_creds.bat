@@ -7,23 +7,22 @@ echo   CONFIGURAR CREDENCIALES DE ACTUALIZACION
 echo =========================================
 echo.
 echo Este script configurara las credenciales para
-echo acceder al repositorio privado de GitLab.
+echo acceder al repositorio privado de GitHub.
 echo.
 echo Requisitos:
-echo   - Usuario de GitLab (tu email o username)
-echo   - Token de acceso personal (Access Token)
-echo     Crear en: https://git.upc.com.mx/-/user_settings/personal_access_tokens
+echo   - Token de acceso personal (PAT) de GitHub
+echo     Crear en: https://github.com/settings/tokens  con scope "repo"
 echo.
 echo =========================================
 echo.
-set /p USUARIO="Ingrese su usuario de GitLab: "
+set /p USUARIO="Ingrese su usuario de GitHub: "
 set /p TOKEN="Ingrese su token de acceso: "
 echo.
 echo.
 echo Creando archivo de credenciales...
 echo.
 set CREDFILE=%USERPROFILE%\.git-credentials
-echo https://%USUARIO%:%TOKEN%@git.upc.com.mx > "%CREDFILE%"
+echo https://%USUARIO%:%TOKEN%@github.com > "%CREDFILE%"
 echo.
 if %ERRORLEVEL% EQU 0 (
     echo [OK] Archivo creado: %CREDFILE%
@@ -34,7 +33,7 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo Intente manualmente:
     echo   Crear archivo: %CREDFILE%
-    echo   Contenido: https://%USUARIO%:%TOKEN%@git.upc.com.mx
+    echo   Contenido: https://%USUARIO%:%TOKEN%@github.com
 )
 echo.
 echo =========================================
