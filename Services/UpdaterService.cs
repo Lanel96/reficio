@@ -12,7 +12,7 @@ namespace Reficio.Services;
 public static class UpdaterService
 {
     private const string GitHost = "github.com";
-    private const string GitHubOwner = "Lanet96";
+    private const string GitHubOwner = "Lanel96";
     private const string GitHubRepo = "reficio";
     private const string PackageName = "reficio";
     private static readonly string ApiBaseUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepo}";
