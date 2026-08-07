@@ -29,10 +29,10 @@ jobs:
             -o publish/windows-x64
 
       - name: Package ZIP
-        shell: bash
+        shell: powershell
         run: |
-          cd publish/windows-x64
-          zip -r ../Reficio-windows-x64.zip . -x "*.pdb"
+          $files = Get-ChildItem "publish/windows-x64" -File | Where-Object { $_.Extension -ne ".pdb" }
+          Compress-Archive -Path $files.FullName -DestinationPath "publish/Reficio-windows-x64.zip" -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
