@@ -17,7 +17,20 @@ public static class UpdaterService
     private const string ApiBaseUrl = $"https://{GitHost}/api/v4/projects/{GitProject}";
     // Token por defecto para que la actualización funcione sin configurar credenciales.
     // Se puede sobreescribir guardando otro token en ~/.git-credentials o en GIT_PASSWORD.
-    private const string DefaultToken = "glpat-lttnfr6GIFgy5ZxWyhuJcm86MQp1OjEwCA.01.0y17plojr";
+    private const string DefaultToken = "glpat-f1N_K9Ys57Qeh_rRkZxC8W86MQp1OjEwCA.01.0y03hz9ym";
+    private static readonly string DebugLogPath = Path.Combine(System.IO.Path.GetTempPath(), "reficio_update_debug.log");
+    private static readonly object DebugLock = new();
+    private static void DebugLog(string msg)
+    {
+        try { lock (DebugLock) System.IO.File.AppendAllText(DebugLogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
+    }
+    private static string TokenHash(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return "(vacío)";
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
+    }
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private static Timer? _checkTimer;
 
@@ -72,8 +85,11 @@ public static class UpdaterService
         Directory.CreateDirectory(tmpDir);
         var zipPath = Path.Combine(tmpDir, zipName);
 
-        AddAuth(Http, GetAuthToken());
+        var token = GetAuthToken();
+        try { DebugLog($"Descarga: url={downloadUrl} tokenhash={TokenHash(token)}"); } catch { }
+        AddAuth(Http, token);
         var response = await Http.GetAsync(downloadUrl);
+        DebugLog($"Descarga status: {(int)response.StatusCode}");
         response.EnsureSuccessStatusCode();
         var totalBytes = response.Content.Headers.ContentLength ?? -1L;
         await using var stream = await response.Content.ReadAsStreamAsync();
@@ -149,14 +165,22 @@ public static class UpdaterService
 
         var url = $"{ApiBaseUrl}/repository/tags?per_page=100&order=desc";
         AddAuth(Http, token);
+        DebugLog($"Consulta: url={url} tokenhash={TokenHash(token)}");
         string json;
         try
         {
             json = await Http.GetStringAsync(url);
+            DebugLog($"Consulta status: OK");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
+            DebugLog($"Consulta status: 404");
             throw new Exception("el token de git es inválido o el proyecto no es accesible (404)", ex);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            DebugLog($"Consulta status: 401");
+            throw new Exception("el token de git es rechazado (401)", ex);
         }
 
         var tags = JsonConvert.DeserializeObject<List<GitLabTag>>(json);
