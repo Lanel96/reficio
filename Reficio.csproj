@@ -28,6 +28,14 @@
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
+  <!-- Build de prueba sin control de login -->
+  <PropertyGroup Condition="'$(Configuration)' == 'TestNoLogin'">
+    <DefineConstants>$(DefineConstants);NO_LOGIN</DefineConstants>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />

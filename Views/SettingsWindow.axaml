@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Reficio.Views.SettingsWindow"
+        Title="Configuración de conexión"
+        Width="560" Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="#F5F6FA">
+
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="White" CornerRadius="12" Margin="16" Padding="24"
+            BorderBrush="#E5E7EB" BorderThickness="1">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
+                <Button Content="Cancelar" Classes="secondary" Click="Cancel_Click" IsCancel="True"/>
+                <Button Content="Guardar y probar" Classes="primary"
+                        Command="{Binding SaveCommand}" IsDefault="True"/>
+            </StackPanel>
+            <StackPanel Spacing="10">
+                <TextBlock Text="CONEXION A BASE DE DATOS" FontSize="12" FontWeight="SemiBold"
+                           Foreground="#6B7280" Margin="0,0,0,4"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Host:" Width="90" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding Host}" Width="200"/>
+                    <TextBlock Text="Puerto:" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding Port}" Width="90"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Base de datos:" Width="90" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding DbPath}" Width="330" Watermark="Ruta al archivo .fdb"/>
+                    <Button Content="Examinar" Classes="secondary" Padding="12,8"
+                            Command="{Binding BrowseDbPathCommand}"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Usuario BD:" Width="90" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding DbUser}" Width="150" Watermark="SYSDBA"/>
+                    <TextBlock Text="Contraseña:" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding DbPassword}" Width="150" PasswordChar="•" Watermark="Contraseña Firebird"/>
+                </StackPanel>
+
+                <TextBlock Text="HERRAMIENTAS DE REPARACION" FontSize="12" FontWeight="SemiBold"
+                           Foreground="#6B7280" Margin="0,8,0,4"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Herramientas:" Width="90" VerticalAlignment="Center" FontSize="13" Foreground="#374151"/>
+                    <TextBox Text="{Binding BinDir}" Width="330" Watermark="Carpeta de gbak, gfix, gstat (opcional)"/>
+                    <Button Content="Examinar" Classes="secondary" Padding="12,8"
+                            Command="{Binding BrowseBinDirCommand}"/>
+                </StackPanel>
+
+                <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="#16A34A" Margin="0,4,0,0"/>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>

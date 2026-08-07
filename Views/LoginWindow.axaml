@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Reficio.Views.LoginWindow"
+        Title="Reficio — Iniciar sesión"
+        Width="420" Height="520"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="#F5F6FA">
+
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="White" CornerRadius="12" Margin="20" Padding="28"
+            BorderBrush="#E5E7EB" BorderThickness="1" VerticalAlignment="Center">
+        <StackPanel Spacing="12">
+            <Border Background="#2563EB" CornerRadius="10" Width="56" Height="56"
+                    HorizontalAlignment="Center">
+                <TextBlock Text="R" FontSize="26" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="Reficio" FontSize="20" FontWeight="Bold" Foreground="#1F2937"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Reparador de Bases de Datos Firebird" FontSize="12"
+                       Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+            <TextBlock Text="Usuario:" FontSize="13" Foreground="#374151"/>
+            <TextBox Text="{Binding Username}" Watermark="Usuario (MUSUA · USUA)"/>
+            <TextBlock Text="Contraseña:" FontSize="13" Foreground="#374151"/>
+            <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Contraseña (MUSUA · PASE)"/>
+
+            <Button Content="Iniciar sesión" Classes="primary" HorizontalAlignment="Stretch"
+                    Command="{Binding DoLoginCommand}" IsDefault="True"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                <TextBlock Text="¿Requiere ajustar la conexión?" FontSize="12" Foreground="#9CA3AF"
+                           VerticalAlignment="Center"/>
+                <Button Content="Configurar conexión" Classes="secondary"
+                        Command="{Binding OpenSetupCommand}" Padding="12,6"/>
+            </StackPanel>
+
+            <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#DC2626"
+                       TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0"/>
+        </StackPanel>
+    </Border>
+</Window>

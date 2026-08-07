@@ -18,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private CorrectionModule? _facturaModule;
     private CorrectionModule? _pacienteModule;
     private AppConfig _config;
+    private DbConnectionConfig _conn;
     private readonly StringBuilder _log = new();
 
     [ObservableProperty] private string _dbPath = "";
@@ -32,6 +33,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private int _selectedTabIndex;
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
+    [ObservableProperty] private string _currentUser = "";
+    [ObservableProperty] private string _userDepartment = "";
 
     [ObservableProperty] private string _facturaCodi = "";
     [ObservableProperty] private string _facturaStatus = "Conecte a una BD";
@@ -51,16 +54,22 @@ public partial class MainViewModel : ObservableObject
             ? desktop.MainWindow
             : null;
 
-    public MainViewModel()
+    public MainViewModel(DbConnectionConfig conn, UserModel user, FirebirdDbService? db = null)
     {
+        _conn = conn;
+        DbPath = conn.DbPath;
+        User = conn.DbUser;
+        Password = conn.DbPassword;
         _config = ConfigService.Load();
-        DbPath = _config.LastDbPath;
-        User = _config.User;
-        Password = "";
         BinDir = _config.BinDir;
+        CurrentUser = user.Usuario;
+        UserDepartment = user.Departamento;
         var ver = UpdaterService.GetCurrentVersion();
         VersionText = $"v{ver}";
         StatusText = $"Listo (v{ver})";
+
+        if (db != null) { _db = db; LoadModules(); }
+        else Reconnect();
 
         UpdaterService.StartAutoCheck(newVersion =>
         {
@@ -81,54 +90,61 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task BrowseAsync()
+    private async Task OpenSettingsAsync()
     {
         var window = GetWindow();
-        if (window == null) return;
-        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Seleccionar base de datos Firebird",
-            AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("Firebird Database") { Patterns = new[] { "*.fdb", "*.FDB" } } }
-        });
-        if (files.Count > 0) DbPath = files[0].Path.LocalPath;
+        var settings = new SettingsWindow();
+        if (window != null) await settings.ShowDialog(window);
+        ApplyConnectionConfig();
     }
 
-    [RelayCommand]
-    private async Task BrowseBinDirAsync()
+    public void ApplyConnectionConfig()
     {
-        var window = GetWindow();
-        if (window == null) return;
-        var dirs = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = "Seleccionar carpeta de herramientas Firebird",
-            AllowMultiple = false
-        });
-        if (dirs.Count > 0) BinDir = dirs[0].Path.LocalPath;
+        var config = ConnectionConfigService.Load();
+        var appConfig = ConfigService.Load();
+        if (config == null) return;
+
+        _conn = config;
+        DbPath = config.DbPath;
+        User = config.DbUser;
+        Password = config.DbPassword;
+        BinDir = appConfig.BinDir;
+        Reconnect();
+        AppendLog("Configuración de conexión actualizada");
+        StatusText = "Configuración de conexión actualizada";
     }
 
-    [RelayCommand]
-    private void Connect()
+    private void LoadModules()
     {
-        var window = GetWindow();
-        if (string.IsNullOrEmpty(DbPath)) { ShowError(window, "Seleccione una base de datos"); return; }
-        if (!DbPath.EndsWith(".fdb", StringComparison.OrdinalIgnoreCase)) { ShowError(window, "Extensión .fdb requerida"); return; }
         try
         {
-            StatusText = "Conectando...";
-            _db?.Dispose();
-            _db = new FirebirdDbService(DbPath, User, Password);
-            _db.TestConnection();
+            if (_db == null) { FacturaStatus = "Conecte a una BD"; PacienteStatus = "Conecte a una BD"; return; }
             _facturaModule = new CorrectionModule(_db, "DINGR"); _facturaModule.LoadColumns();
-            FacturaStatus = "DINGR"; FacturaCount = $"{_facturaModule.GetRecordCount()} registros";
             _pacienteModule = new CorrectionModule(_db, "MPACI"); _pacienteModule.LoadColumns();
-            PacienteStatus = "MPACI"; PacienteCount = $"{_pacienteModule.GetRecordCount()} registros";
-            StatusText = "Conectado"; AppendLog("Conexión exitosa");
+            FacturaStatus = "DINGR"; PacienteStatus = "MPACI";
         }
-        catch (Exception ex) { StatusText = "Error de conexión"; ShowError(window, $"Error: {ex.Message}"); }
+        catch (Exception ex) { AppendLog($"No se pudo cargar tablas: {ex.Message}"); }
     }
 
-    [RelayCommand] private void Disconnect() => DisconnectDatabase();
+    private void Reconnect()
+    {
+        try
+        {
+            _db?.Dispose();
+            _db = new FirebirdDbService(_conn.Host, _conn.Port, _conn.DbPath, _conn.DbUser, _conn.DbPassword);
+            _db.TestConnection();
+            _facturaModule = new CorrectionModule(_db, "DINGR"); _facturaModule.LoadColumns();
+            _pacienteModule = new CorrectionModule(_db, "MPACI"); _pacienteModule.LoadColumns();
+            FacturaStatus = "DINGR"; PacienteStatus = "MPACI";
+        }
+        catch (Exception ex)
+        {
+            _db?.Dispose(); _db = null;
+            _facturaModule = null; _pacienteModule = null;
+            FacturaStatus = "Conecte a una BD"; PacienteStatus = "Conecte a una BD";
+            AppendLog($"No se pudo reconectar: {ex.Message}");
+        }
+    }
 
     private void DisconnectDatabase()
     {
@@ -139,32 +155,31 @@ public partial class MainViewModel : ObservableObject
         FirebirdDbService.ClearAllPools();
         FacturaStatus = "Conecte a una BD"; FacturaRecords.Clear(); FacturaSelectedIndex = -1; FacturaCount = "0 registros";
         PacienteStatus = "Conecte a una BD"; PacienteRecords.Clear(); PacienteSelectedIndex = -1; PacienteCount = "0 registros";
-        AppendLog("Base de datos desconectada");
     }
 
     [RelayCommand] private async Task DiagnosticarAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Diagnosticar la base de datos?")) return;
+        if (!await ConfirmAsync("¿Diagnosticar la base de datos?")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.Diagnosticar(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.Diagnosticar(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task RepararLigeroAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Ejecutar reparación ligera?")) return;
+        if (!await ConfirmAsync("¿Ejecutar reparación ligera?")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.RepararLigero(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.RepararLigero(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task RepararProfundoAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Ejecutar reparación profunda? Se creará un backup y la BD original será renombrada.")) return;
+        if (!await ConfirmAsync("¿Ejecutar reparación profunda? Se creará un backup y la BD original será renombrada.")) { Reconnect(); return; }
         SetRunning(true);
         Task.Run(() =>
         {
@@ -193,7 +208,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 AppendLogResult(r);
             }
-            finally { SetRunning(false); }
+            finally { RepairFinished(); }
         });
     }
 
@@ -201,34 +216,34 @@ public partial class MainViewModel : ObservableObject
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Crear backup de la base de datos?")) return;
+        if (!await ConfirmAsync("¿Crear backup de la base de datos?")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.SoloBackup(BinDir, DbPath, User, Password, $"{DbPath}.{DateTime.Now:yyyyMMdd_HHmmss}.fbk", UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.SoloBackup(BinDir, DbPath, User, Password, $"{DbPath}.{DateTime.Now:yyyyMMdd_HHmmss}.fbk", UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task VerificarAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Verificar integridad de la base de datos?")) return;
+        if (!await ConfirmAsync("¿Verificar integridad de la base de datos?")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.VerificarIntegridad(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.VerificarIntegridad(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task SweepAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Ejecutar limpieza (sweep) de la base de datos?")) return;
+        if (!await ConfirmAsync("¿Ejecutar limpieza (sweep) de la base de datos?")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.Sweep(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.Sweep(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task NBackupAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Crear backup NBackup de la base de datos?")) return;
+        if (!await ConfirmAsync("¿Crear backup NBackup de la base de datos?")) { Reconnect(); return; }
         SetRunning(true);
         Task.Run(() => {
             try
@@ -238,7 +253,7 @@ public partial class MainViewModel : ObservableObject
                 var r = FirebirdTools.NBackup(BinDir, DbPath, User, Password, backupPath, 0, UpdateProgress);
                 AppendLogResult(r);
             }
-            finally { SetRunning(false); }
+            finally { RepairFinished(); }
         });
     }
 
@@ -246,16 +261,16 @@ public partial class MainViewModel : ObservableObject
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Actualizar ODS de la base de datos? Esta operación es irreversible.")) return;
+        if (!await ConfirmAsync("¿Actualizar ODS de la base de datos? Esta operación es irreversible.")) { Reconnect(); return; }
         SetRunning(true);
-        Task.Run(() => { try { var r = FirebirdTools.UpgradeODS(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { SetRunning(false); } });
+        Task.Run(() => { try { var r = FirebirdTools.UpgradeODS(BinDir, DbPath, User, Password, UpdateProgress); AppendLogResult(r); } finally { RepairFinished(); } });
     }
 
     [RelayCommand] private async Task MigrarODSAsync()
     {
         if (!ValidateDb()) return;
         DisconnectDatabase();
-        if (!await ConfirmAsync("¿Migrar la base de datos de Firebird 3.0 a 4.0 (ODS 12 → 13)?\nSe creará un backup y una nueva base sin modificar la original.")) return;
+        if (!await ConfirmAsync("¿Migrar la base de datos de Firebird 3.0 a 4.0 (ODS 12 → 13)?\nSe creará un backup y una nueva base sin modificar la original.")) { Reconnect(); return; }
         SetRunning(true);
         Task.Run(() =>
         {
@@ -271,7 +286,7 @@ public partial class MainViewModel : ObservableObject
                 var r = FirebirdTools.MigrarODS(BinDir, DbPath, User, Password, backupPath, newDbPath, UpdateProgress);
                 AppendLogResult(r);
             }
-            finally { SetRunning(false); }
+            finally { RepairFinished(); }
         });
     }
 
@@ -484,6 +499,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     private void SetRunning(bool running) { IsRunning = running; }
+    private void RepairFinished() { SetRunning(false); DisconnectDatabase(); Reconnect(); }
     private void UpdateProgress(double p, string m) { ProgressValue = p; StatusText = m; }
     private bool ValidateDb() { if (string.IsNullOrEmpty(DbPath)) { ShowError(GetWindow(), "Seleccione una BD"); return false; } return true; }
     private void ShowError(Window? w, string msg)
@@ -539,5 +555,5 @@ public partial class MainViewModel : ObservableObject
                 if (!string.IsNullOrWhiteSpace(line)) AppendLog($"  {line.Trim()}");
     }
 
-    public void SaveConfig() { _config.LastDbPath = DbPath; _config.User = User; _config.BinDir = BinDir; ConfigService.Save(_config); }
+    public void SaveConfig() { _config.BinDir = BinDir; ConfigService.Save(_config); }
 }

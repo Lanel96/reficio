@@ -15,9 +15,14 @@ public class FirebirdDbService : IDisposable
     public string Password { get; }
 
     public FirebirdDbService(string dbPath, string user, string password)
+        : this("localhost", 3050, dbPath, user, password)
     {
-        Host = "localhost";
-        Port = 3050;
+    }
+
+    public FirebirdDbService(string host, int port, string dbPath, string user, string password)
+    {
+        Host = host;
+        Port = port;
         Path = dbPath;
         User = user;
         Password = password;

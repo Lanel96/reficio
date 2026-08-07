@@ -1,16 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:Reficio.ViewModels"
         x:Class="Reficio.Views.MainWindow"
         Title="Reficio — Reparador de Bases de Datos Firebird"
         Width="960" Height="720"
         MinWidth="800" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="#F5F6FA">
-
-    <Window.DataContext>
-        <vm:MainViewModel />
-    </Window.DataContext>
 
     <Window.Styles>
         <!-- Button primary style -->
@@ -130,56 +125,50 @@
             <StackPanel Spacing="0" Margin="24,20,24,16">
 
                 <!-- Header -->
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <Border Background="#2563EB" CornerRadius="10" Width="44" Height="44"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="R" FontSize="22" FontWeight="Bold" Foreground="White"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="Reficio" FontSize="22" FontWeight="Bold" Foreground="#1F2937"/>
-                        <TextBlock Text="Reparador de Bases de Datos Firebird" FontSize="12"
-                                   Foreground="#9CA3AF" Margin="0,2,0,0"/>
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,20">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Border Background="#2563EB" CornerRadius="10" Width="44" Height="44"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="R" FontSize="22" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Reficio" FontSize="22" FontWeight="Bold" Foreground="#1F2937"/>
+                            <TextBlock Text="Reparador de Bases de Datos Firebird" FontSize="12"
+                                       Foreground="#9CA3AF" Margin="0,2,0,0"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12"
+                                VerticalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Right">
+                            <Run Text="Conectado: "/><Run Text="{Binding CurrentUser}" FontWeight="SemiBold" Foreground="#374151"/>
+                            <LineBreak/>
+                            <Run Text="{Binding UserDepartment}" FontSize="11" Foreground="#9CA3AF"/>
+                        </TextBlock>
+                        <Button Classes="secondary" Padding="10,8" CornerRadius="8"
+                                Command="{Binding OpenSettingsCommand}"
+                                ToolTip.Tip="Configuración de conexión">
+                            <TextBlock Text="&#x2699;" FontSize="20" FontWeight="Normal"
+                                       Foreground="#374151"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
                 <!-- Connection Card -->
                 <Border Classes="card">
                     <StackPanel Spacing="10">
                         <TextBlock Text="CONEXION" Classes="sectionHeader"/>
-
-                        <!-- DB Path row -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="Base de datos:" Width="110" VerticalAlignment="Center"
                                        FontSize="13" Foreground="#374151"/>
-                            <TextBox Text="{Binding DbPath}" Width="520" Watermark="Ruta al archivo .fdb"/>
-                            <Button Content="Examinar" Classes="secondary"
-                                    Command="{Binding BrowseCommand}" Padding="14,8"/>
+                            <TextBlock Text="{Binding DbPath}" VerticalAlignment="Center" FontSize="13"
+                                       Foreground="#1F2937" TextWrapping="Wrap"/>
                         </StackPanel>
-
-                        <!-- Credentials row -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Usuario:" Width="110" VerticalAlignment="Center"
+                            <TextBlock Text="Usuario BD:" Width="110" VerticalAlignment="Center"
                                        FontSize="13" Foreground="#374151"/>
-                            <TextBox Text="{Binding User}" Width="140" Watermark="SYSDBA"/>
-                            <TextBlock Text="Contraseña:" VerticalAlignment="Center"
-                                       FontSize="13" Foreground="#374151" Margin="8,0,0,0"/>
-                            <TextBox Text="{Binding Password}" Width="140"
-                                     Watermark="••••••••" PasswordChar="•"/>
-                            <Button Content="Conectar" Classes="primary"
-                                    Command="{Binding ConnectCommand}" Padding="20,8"/>
-                            <Button Content="Desconectar" Classes="secondary"
-                                    Command="{Binding DisconnectCommand}" Padding="20,8"/>
-                        </StackPanel>
-
-                        <!-- Bin dir row -->
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Herramientas:" Width="110" VerticalAlignment="Center"
-                                       FontSize="13" Foreground="#374151"/>
-                            <TextBox Text="{Binding BinDir}" Width="520"
-                                     Watermark="Carpeta de gbak, gfix, gstat (opcional)"/>
-                            <Button Content="Examinar" Classes="secondary"
-                                    Command="{Binding BrowseBinDirCommand}" Padding="14,8"/>
+                            <TextBlock Text="{Binding User}" VerticalAlignment="Center" FontSize="13"
+                                       Foreground="#1F2937"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
