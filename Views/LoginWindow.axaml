@@ -52,9 +52,9 @@
                        Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,0,0,8"/>
 
             <TextBlock Text="Usuario:" FontSize="13" Foreground="#374151"/>
-            <TextBox Text="{Binding Username}" Watermark="Usuario (MUSUA · USUA)"/>
+            <TextBox Text="{Binding Username}" Watermark="Usuario"/>
             <TextBlock Text="Contraseña:" FontSize="13" Foreground="#374151"/>
-            <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Contraseña (MUSUA · PASE)"/>
+            <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="Contraseña"/>
 
             <Button Content="Iniciar sesión" Classes="primary" HorizontalAlignment="Stretch"
                     Command="{Binding DoLoginCommand}" IsDefault="True"/>
