@@ -15,8 +15,8 @@ public static class UpdaterService
     private const string GitHubRepo = "reficio";
     private const string PackageName = "reficio";
     private static readonly string ApiBaseUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepo}";
-    // Token por defecto para que la actualización funcione sin configurar credenciales.
-    // Se puede sobreescribir guardando otro token en ~/.git-credentials o en GIT_PASSWORD.
+    // Token por defecto vacío; para repos públicos no se necesita. Para privados se puede
+    // configurar en ~/.git-credentials o GIT_PASSWORD.
     private const string DefaultToken = "";
     private static readonly string DebugLogPath = Path.Combine(System.IO.Path.GetTempPath(), "reficio_update_debug.log");
     private static readonly object DebugLock = new();
@@ -128,18 +128,16 @@ public static class UpdaterService
 
     private static async Task<(string version, string downloadUrl)> GetLatestReleaseAsync()
     {
-        // Utiliza la Release (tag) más reciente publicada en GitHub.
+        // Consulta la Release (tag) más reciente publicada en GitHub.
+        // Funciona sin token para repos públicos; para privados se usa token si existe.
         var token = GetAuthToken();
-        if (string.IsNullOrEmpty(token))
-            throw new Exception(
-                "no hay credenciales configuradas (archivo .git-credentials). Ejecute Reficio_setup_creds.bat");
 
         var url = $"{ApiBaseUrl}/releases/latest";
         DebugLog($"Consulta: url={url} tokenhash={TokenHash(token)}");
         string json;
         try
         {
-            using var releaseResponse = await GetWithRetryAsync(url);
+            using var releaseResponse = await GetWithRetryAsync(url, acceptOctetStream: false);
             json = await releaseResponse.Content.ReadAsStringAsync();
             DebugLog($"Consulta status: {(int)releaseResponse.StatusCode}");
             releaseResponse.EnsureSuccessStatusCode();
@@ -147,12 +145,14 @@ public static class UpdaterService
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             DebugLog($"Consulta status: 404");
-            throw new Exception("el token de GitHub es inválido, el repo no existe, o no hay releases (404)", ex);
+            throw new Exception(
+                "404: no se encontró el repositorio o no hay releases publicadas. " +
+                "Verifica que el repo 'Lanel96/reficio' exista y tenga al menos una Release publicada (no solo tag).", ex);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             DebugLog($"Consulta status: 401");
-            throw new Exception("el token de GitHub es rechazado (401)", ex);
+            throw new Exception("El repositorio es privado y requiere autenticación. Configura un PAT con scope 'repo' en ~/.git-credentials o variable GIT_PASSWORD.", ex);
         }
 
         var release = JsonConvert.DeserializeObject<GitHubRelease>(json);
@@ -168,7 +168,9 @@ public static class UpdaterService
         if (asset == null || string.IsNullOrEmpty(asset.ApiUrl))
             throw new Exception($"No se encontró el instalador '{fileName}' en la Release v{latest}");
 
-        // Repos privados: se debe descargar vía la API del asset con Accept: application/octet-stream.
+        // Para repos privados se descarga via API del asset con Accept: application/octet-stream.
+        // Para públicos, la URL de descarga directa (browser_download_url) también funciona,
+        // pero la API del asset es más consistente.
         return (latest, asset.ApiUrl);
     }
 

@@ -91,20 +91,37 @@ internal static class Program
 
     private static string Download(string url)
     {
+        // Para repos públicos no se requiere token; para privados se usa si existe en ~/.git-credentials o GIT_PASSWORD
         var token = GetAuthToken();
-        if (string.IsNullOrEmpty(token))
-            throw new Exception("No hay credenciales configuradas (archivo .git-credentials). Ejecute Reficio_setup_creds.bat");
 
         using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ReficioUpdater/1.4.8");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+        if (!string.IsNullOrEmpty(token))
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {token}");
         client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/octet-stream");
 
         var zipPath = Path.Combine(Path.GetTempPath(), $"reficio_download_{Guid.NewGuid():N}.zip");
         Console.WriteLine("Descargando actualización...");
 
         using var response = client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
-        DebugLog($"Descarga status: {(int)response.StatusCode}");
+        var code = (int)response.StatusCode;
+        DebugLog($"Descarga status: {code}");
+        if (code == 404)
+        {
+            string body = "";
+            try { body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); } catch { }
+            DebugLog($"Descarga 404 body: {body}");
+            throw new Exception(
+                "404 al descargar el paquete. El asset no existe en la Release o el repo es privado " +
+                "y requiere token. Si el repo es privado, configura un PAT con scope 'repo' en " +
+                "~/.git-credentials o variable GIT_PASSWORD. URL: " + url);
+        }
+        if (code == 401)
+        {
+            throw new Exception(
+                "401: el repositorio es privado y el token es inválido o expiró. " +
+                "Configura un PAT válido con scope 'repo' en ~/.git-credentials o GIT_PASSWORD.");
+        }
         response.EnsureSuccessStatusCode();
 
         using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
