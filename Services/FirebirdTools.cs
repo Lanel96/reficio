@@ -18,19 +18,20 @@ public static class FirebirdTools
             var exeName = OperatingSystem.IsWindows() ? $"{tool}.exe" : tool;
             var binPath = string.IsNullOrEmpty(binDir) ? exeName : Path.Combine(binDir, exeName);
 
-            var args = new List<string> { "-user", user, "-password", password };
-            args.AddRange(extraArgs);
-            if (appendDbPath) args.Add(dbPath);
-
             var psi = new ProcessStartInfo
             {
                 FileName = binPath,
-                Arguments = string.Join(" ", args),
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            psi.ArgumentList.Add("-user");
+            psi.ArgumentList.Add(user);
+            psi.ArgumentList.Add("-password");
+            psi.ArgumentList.Add(password);
+            foreach (var arg in extraArgs) psi.ArgumentList.Add(arg);
+            if (appendDbPath) psi.ArgumentList.Add(dbPath);
 
             using var process = Process.Start(psi);
             if (process == null) { result.Error = $"No se pudo iniciar {tool}"; return result; }
