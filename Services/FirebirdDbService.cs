@@ -6,19 +6,20 @@ namespace Reficio.Services;
 
 public class FirebirdDbService : IDisposable
 {
-    private FbConnection? _connection;
-
+    private readonly string _connectionString;
+    private bool _disposed;
+    
     public string Host { get; }
     public int Port { get; }
     public string Path { get; }
     public string User { get; }
     public string Password { get; }
-
+    
     public FirebirdDbService(string dbPath, string user, string password)
         : this("localhost", 3050, dbPath, user, password)
     {
     }
-
+    
     public FirebirdDbService(string host, int port, string dbPath, string user, string password)
     {
         Host = host;
@@ -26,39 +27,54 @@ public class FirebirdDbService : IDisposable
         Path = dbPath;
         User = user;
         Password = password;
+        _connectionString = BuildConnectionString();
     }
-
-    private string GetConnectionString()
-        => $"User={User};Password={Password};Database={Path};DataSource={Host};Port={Port};Dialect=3;Pooling=true;MaxPoolSize=10;";
-
-    private FbConnection GetConnection()
+    
+    private string BuildConnectionString()
     {
-        if (_connection != null && _connection.State == ConnectionState.Open)
-            return _connection;
-
-        _connection = new FbConnection(GetConnectionString());
-        _connection.Open();
-        return _connection;
+        var builder = new FbConnectionStringBuilder
+        {
+            UserID = User,
+            Password = Password,
+            Database = Path,
+            DataSource = Host,
+            Port = Port,
+            Dialect = 3,
+            Pooling = true,
+            MinPoolSize = 0,
+            MaxPoolSize = 10,
+            ConnectionLifeTime = 300,
+            ConnectionTimeout = 15
+        };
+        return builder.ToString();
     }
-
+    
+    private FbConnection CreateConnection()
+    {
+        var conn = new FbConnection(_connectionString);
+        conn.Open();
+        return conn;
+    }
+    
     public void TestConnection()
     {
-        using var conn = new FbConnection(GetConnectionString());
-        conn.Open();
+        using var conn = CreateConnection();
     }
-
+    
     public QueryResult Query(string sql, params object?[] args)
     {
-        var conn = GetConnection();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        
+        using var conn = CreateConnection();
         using var cmd = new FbCommand(sql, conn);
         for (int i = 0; i < args.Length; i++)
             cmd.Parameters.AddWithValue($"@p{i}", args[i] ?? DBNull.Value);
-
+        
         using var reader = cmd.ExecuteReader();
         var columns = new List<string>();
         for (int i = 0; i < reader.FieldCount; i++)
             columns.Add(reader.GetName(i));
-
+        
         var result = new QueryResult { Columns = columns };
         while (reader.Read())
         {
@@ -69,35 +85,39 @@ public class FirebirdDbService : IDisposable
         }
         return result;
     }
-
+    
     public int Execute(string sql, params object?[] args)
     {
-        var conn = GetConnection();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        
+        using var conn = CreateConnection();
         using var cmd = new FbCommand(sql, conn);
         for (int i = 0; i < args.Length; i++)
             cmd.Parameters.AddWithValue($"@p{i}", args[i] ?? DBNull.Value);
         return cmd.ExecuteNonQuery();
     }
-
+    
     public List<string> GetTables()
     {
         var result = Query("SELECT RDB$RELATION_NAME FROM RDB$RELATIONS WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$RELATION_NAME");
         return result.Rows.Select(r => r["RDB$RELATION_NAME"]?.ToString() ?? "").ToList();
     }
-
+    
     public List<string> GetColumns(string table)
     {
         var result = Query("SELECT RDB$FIELD_NAME FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = @p0 ORDER BY RDB$FIELD_POSITION", table);
         return result.Rows.Select(r => r["RDB$FIELD_NAME"]?.ToString() ?? "").ToList();
     }
-
+    
     public void Dispose()
     {
-        _connection?.Close();
-        _connection?.Dispose();
-        GC.SuppressFinalize(this);
+        if (!_disposed)
+        {
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
     }
-
+    
     public static void ClearAllPools()
     {
         FbConnection.ClearAllPools();

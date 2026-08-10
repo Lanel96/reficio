@@ -57,6 +57,12 @@ public partial class LoginViewModel : ObservableObject
                 return;
             }
 
+            // Migración de hash: si la contraseña era texto plano, actualizar a BCrypt
+            if (TryMigratePasswordHash(_db, Username, Password))
+            {
+                StatusText = "Contraseña actualizada a hash seguro";
+            }
+
             StatusText = $"Bienvenido, {Username}";
             var user = result.User!;
             var db = _db;
@@ -72,6 +78,40 @@ public partial class LoginViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private bool TryMigratePasswordHash(FirebirdDbService db, string username, string plainPassword)
+    {
+        try
+        {
+            var result = db.Query("SELECT PASE FROM MUSUA WHERE TRIM(USUA) = @p0", username);
+            if (result.Rows.Count == 0) return false;
+            
+            var storedHash = result.Rows[0].TryGetValue("PASE", out var p) ? p?.ToString()?.Trim() : "";
+            if (string.IsNullOrEmpty(storedHash)) return false;
+            
+            // Si ya es hash BCrypt, no hacer nada
+            if (storedHash.StartsWith("$2a$") || storedHash.StartsWith("$2b$") || storedHash.StartsWith("$2y$"))
+            {
+                // Verificar si necesita rehash (work factor bajo)
+                if (AuthService.NeedsRehash(storedHash))
+                {
+                    var newHash = AuthService.HashPassword(plainPassword);
+                    db.Execute("UPDATE MUSUA SET PASE = @p0 WHERE TRIM(USUA) = @p1", newHash, username);
+                }
+                return false;
+            }
+            
+            // Es texto plano -> migrar a BCrypt
+            var hash = AuthService.HashPassword(plainPassword);
+            db.Execute("UPDATE MUSUA SET PASE = @p0 WHERE TRIM(USUA) = @p1", hash, username);
+            return true;
+        }
+        catch
+        {
+            // No interrumpir el login si falla la migración
+            return false;
         }
     }
 

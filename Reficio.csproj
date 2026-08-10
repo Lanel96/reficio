@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
@@ -26,6 +26,9 @@
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <!-- Build de prueba sin control de login -->
@@ -34,6 +37,9 @@
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,6 +53,7 @@
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,9 +64,37 @@
 
   <ItemGroup>
     <Compile Remove="ReficioUpdater\**" />
-    <EmbeddedResource Remove="ReficioUpdater\**" />
+    <Compile Remove="TestBCrypt\**" />
     <None Remove="ReficioUpdater\**" />
+    <None Remove="TestBCrypt\**" />
     <Content Remove="ReficioUpdater\**" />
+    <Content Remove="TestBCrypt\**" />
   </ItemGroup>
+
+  <!-- Construye ReficioUpdater y lo embebe como recurso -->
+  <Target Name="BuildReficioUpdater" BeforeTargets="CoreCompile">
+    <MSBuild Projects="ReficioUpdater\ReficioUpdater.csproj"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);TargetFramework=net8.0" />
+    
+    <!-- Copiar al directorio de salida para ejecución en desarrollo -->
+    <Copy SourceFiles="ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe"
+          DestinationFolder="$(OutputPath)"
+          Condition="Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe')" />
+    <Copy SourceFiles="ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater"
+          DestinationFolder="$(OutputPath)"
+          Condition="Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater') AND !Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe')" />
+  </Target>
+
+  <!-- Embeber el actualizador como recurso para distribución single-file -->
+  <Target Name="EmbedUpdaterResource" AfterTargets="BuildReficioUpdater" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <EmbeddedResource Include="ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe"
+                        Condition="Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe')"
+                        LogicalName="ReficioUpdater.exe" />
+      <EmbeddedResource Include="ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater"
+                        Condition="Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater') AND !Exists('ReficioUpdater\bin\$(Configuration)\net8.0\ReficioUpdater.exe')"
+                        LogicalName="ReficioUpdater" />
+    </ItemGroup>
+  </Target>
 
 </Project>

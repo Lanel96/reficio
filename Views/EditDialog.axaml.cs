@@ -10,6 +10,10 @@ public partial class EditDialog : Window
     public Dictionary<string, object?> UpdatedValues { get; private set; } = new();
     private readonly Dictionary<string, TextBox> _fields = new();
 
+    public EditDialog() : this(new Dictionary<string, object?>(), Array.Empty<string>(), "Editar")
+    {
+    }
+
     public EditDialog(Dictionary<string, object?> record, string[] fields, string title)
     {
         InitializeComponent();

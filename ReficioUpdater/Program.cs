@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -10,16 +10,15 @@ namespace ReficioUpdater;
 internal static class Program
 {
     private const string GitHost = "github.com";
-
     private static readonly string DebugLogPath =
         Path.Combine(Path.GetTempPath(), "reficio_updater_debug.log");
-
+    
     private static void DebugLog(string msg)
     {
         try { File.AppendAllText(DebugLogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
     }
-
-    private static int Main(string[] args)
+    
+    private static async Task<int> Main(string[] args)
     {
         try
         {
@@ -29,26 +28,26 @@ internal static class Program
                 Console.WriteLine("[ERROR] Uso: ReficioUpdater --url <asset-url> --dir <install-dir> [--exe <exe>]");
                 return 2;
             }
-
+            
             DebugLog($"Iniciado: url={url} dir={installDir} exe={exeName}");
-
+            
             // La app principal ya se está cerrando; esperar a que libere el archivo.
-            Thread.Sleep(2500);
-
+            await Task.Delay(2500);
+            
             // 1. Descargar el instalador.
-            var zipPath = Download(url);
+            var zipPath = await DownloadAsync(url);
             Console.WriteLine("Descarga completada. Extrayendo...");
             DebugLog("Descarga completada");
-
+            
             // 2. Extraer a una carpeta temporal.
             var extractDir = Path.Combine(Path.GetTempPath(), "reficio_update_extract_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(extractDir);
             ZipFile.ExtractToDirectory(zipPath, extractDir);
-
+            
             // 3. Reemplazar los archivos de la aplicación.
             Console.WriteLine("Instalando...");
             Install(extractDir, installDir, exeName);
-
+            
             // 4. Relanzar la aplicación principal.
             if (!string.IsNullOrEmpty(exeName))
             {
@@ -59,7 +58,7 @@ internal static class Program
                     Process.Start(new ProcessStartInfo(exePath) { WorkingDirectory = installDir, UseShellExecute = true });
                 }
             }
-
+            
             Cleanup(zipPath, extractDir);
             Console.WriteLine("Actualización completada.");
             DebugLog("Actualización completada");
@@ -72,7 +71,7 @@ internal static class Program
             return 1;
         }
     }
-
+    
     private static (string url, string installDir, string exeName) ParseArgs(string[] args)
     {
         string url = "", dir = "", exe = "";
@@ -88,70 +87,100 @@ internal static class Program
         if (string.IsNullOrEmpty(exe)) exe = "Reficio.exe";
         return (url, dir, exe);
     }
-
-    private static string Download(string url)
+    
+    private static async Task<string> DownloadAsync(string url)
     {
-        // Para repos públicos no se requiere token; para privados se usa si existe en ~/.git-credentials o GIT_PASSWORD
         var token = GetAuthToken();
-
+        
         using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ReficioUpdater/1.4.8");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", $"ReficioUpdater/{GetCurrentVersion()}");
         if (!string.IsNullOrEmpty(token))
             client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {token}");
         client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/octet-stream");
-
+        
         var zipPath = Path.Combine(Path.GetTempPath(), $"reficio_download_{Guid.NewGuid():N}.zip");
         Console.WriteLine("Descargando actualización...");
-
-        using var response = client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
+        
+        using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         var code = (int)response.StatusCode;
         DebugLog($"Descarga status: {code}");
+        
+        if (code == 401 && !string.IsNullOrEmpty(token))
+        {
+            DebugLog("401: reintentando sin token (repo público)");
+            client.DefaultRequestHeaders.Remove("Authorization");
+            using var retryResponse = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            var retryCode = (int)retryResponse.StatusCode;
+            DebugLog($"Reintento descarga status: {retryCode}");
+            if (retryCode == 404)
+                throw new Exception("404 al descargar el paquete. El asset no existe en la Release.");
+            retryResponse.EnsureSuccessStatusCode();
+            await using (var stream = await retryResponse.Content.ReadAsStreamAsync())
+            await using (var fs = File.Create(zipPath))
+            {
+                await stream.CopyToAsync(fs);
+            }
+            return zipPath;
+        }
+        
         if (code == 404)
         {
             string body = "";
-            try { body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult(); } catch { }
+            try { body = await response.Content.ReadAsStringAsync(); } catch { }
             DebugLog($"Descarga 404 body: {body}");
             throw new Exception(
                 "404 al descargar el paquete. El asset no existe en la Release o el repo es privado " +
                 "y requiere token. Si el repo es privado, configura un PAT con scope 'repo' en " +
                 "~/.git-credentials o variable GIT_PASSWORD. URL: " + url);
         }
-        if (code == 401)
-        {
-            throw new Exception(
-                "401: el repositorio es privado y el token es inválido o expiró. " +
-                "Configura un PAT válido con scope 'repo' en ~/.git-credentials o GIT_PASSWORD.");
-        }
+        
         response.EnsureSuccessStatusCode();
-
-        using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
-        using (var fs = File.Create(zipPath))
+        
+        await using (var stream = await response.Content.ReadAsStreamAsync())
+        await using (var fs = File.Create(zipPath))
         {
-            stream.CopyTo(fs);
+            await stream.CopyToAsync(fs);
         }
         return zipPath;
     }
-
+    
+    private static string GetCurrentVersion()
+    {
+        var ver = Assembly.GetExecutingAssembly().GetName().Version;
+        return ver?.ToString(3) ?? "1.0.0";
+    }
+    
     private static void Install(string extractDir, string installDir, string exeName)
     {
         if (OperatingSystem.IsWindows())
         {
-            // El zip contiene windows-x64/Reficio.exe (publicado con PublishSingleFile).
+            // El zip puede contener:
+            // - windows-x64/Reficio.exe (publicado como carpeta)
+            // - Reficio.exe directamente (publicado como single-file)
             var sourceDir = Path.Combine(extractDir, "windows-x64");
             if (!Directory.Exists(sourceDir)) sourceDir = extractDir;
-
+            
             var srcExe = Directory.GetFiles(sourceDir, "*.exe").FirstOrDefault()
                          ?? Path.Combine(sourceDir, exeName);
             if (!File.Exists(srcExe))
                 throw new Exception($"No se encontró el ejecutable en el paquete descargado: {srcExe}");
-
+            
             var destExe = Path.Combine(installDir, exeName);
             var backup = destExe + ".old";
-
+            
             try { if (File.Exists(backup)) File.Delete(backup); } catch { }
             try { if (File.Exists(destExe)) File.Move(destExe, backup); } catch { }
             File.Copy(srcExe, destExe, true);
             DebugLog($"Reemplazado {destExe}");
+            
+            // También copiar archivos adicionales si existen (pdb, dlls, etc.)
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                var fileName = Path.GetFileName(file);
+                if (fileName.Equals(exeName, StringComparison.OrdinalIgnoreCase)) continue;
+                var destFile = Path.Combine(installDir, fileName);
+                try { File.Copy(file, destFile, true); } catch { }
+            }
         }
         else if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
         {
@@ -176,7 +205,7 @@ internal static class Program
             }
         }
     }
-
+    
     private static string GetPlatformTag()
     {
         if (OperatingSystem.IsWindows()) return "windows-x64";
@@ -188,7 +217,7 @@ internal static class Program
         if (OperatingSystem.IsLinux()) return "linux-x64";
         return "unknown";
     }
-
+    
     private static string? FindAppBundle(string installDir)
     {
         var dir = installDir;
@@ -201,7 +230,7 @@ internal static class Program
         }
         return null;
     }
-
+    
     private static void CopyDirectory(string source, string dest)
     {
         if (!Directory.Exists(source)) return;
@@ -211,13 +240,13 @@ internal static class Program
         foreach (var dir in Directory.GetDirectories(source))
             CopyDirectory(dir, Path.Combine(dest, Path.GetFileName(dir)));
     }
-
+    
     private static void Cleanup(string zipPath, string extractDir)
     {
         try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { }
         try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); } catch { }
     }
-
+    
     private static string? GetAuthToken()
     {
         var credPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".git-credentials");

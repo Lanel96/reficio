@@ -103,10 +103,10 @@ public partial class SettingsViewModel : ObservableObject
 
         IsBusy = false;
         StatusText = "Conexión guardada correctamente";
-        Closed?.Invoke();
+        RequestClose?.Invoke(true);
     }
 
-    public event Action? Closed;
+    public event Action<bool>? RequestClose;
 
     private static Window? GetWindow()
         => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop

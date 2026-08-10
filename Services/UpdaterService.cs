@@ -10,35 +10,38 @@ namespace Reficio.Services;
 
 public static class UpdaterService
 {
-    private const string GitHost = "github.com";
-    private const string GitHubOwner = "Lanel96";
-    private const string GitHubRepo = "reficio";
-    private const string PackageName = "reficio";
-    private static readonly string ApiBaseUrl = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepo}";
-    // Token por defecto vacío; para repos públicos no se necesita. Para privados se puede
-    // configurar en ~/.git-credentials o GIT_PASSWORD.
-    private const string DefaultToken = "";
-    private static readonly string DebugLogPath = Path.Combine(System.IO.Path.GetTempPath(), "reficio_update_debug.log");
-    private static readonly object DebugLock = new();
-    private static void DebugLog(string msg)
-    {
-        try { lock (DebugLock) System.IO.File.AppendAllText(DebugLogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
-    }
-    private static string TokenHash(string token)
-    {
-        if (string.IsNullOrEmpty(token)) return "(vacío)";
-        using var sha = System.Security.Cryptography.SHA256.Create();
-        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
-        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
-    }
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private const string DefaultGitHost = "github.com";
+    private const string DefaultGitHubOwner = "Lanel96";
+    private const string DefaultGitHubRepo = "reficio";
+    private const string DefaultPackageName = "reficio";
+    private static readonly string DefaultApiBaseUrl = $"https://api.github.com/repos/{DefaultGitHubOwner}/{DefaultGitHubRepo}";
+    
+    private static HttpClient? _httpClient;
+    private static readonly object HttpClientLock = new();
+    private static Timer? _checkTimer;
+    
+    public static string GitHost { get; set; } = DefaultGitHost;
+    public static string GitHubOwner { get; set; } = DefaultGitHubOwner;
+    public static string GitHubRepo { get; set; } = DefaultGitHubRepo;
+    public static string PackageName { get; set; } = DefaultPackageName;
+    public static string ApiBaseUrl { get; set; } = DefaultApiBaseUrl;
+    
     static UpdaterService()
     {
-        Http.DefaultRequestHeaders.UserAgent.ParseAdd("Reficio/" + GetCurrentVersion());
-        Http.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
+        InitializeHttpClient();
     }
-    private static Timer? _checkTimer;
-
+    
+    private static void InitializeHttpClient()
+    {
+        lock (HttpClientLock)
+        {
+            _httpClient?.Dispose();
+            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Reficio/" + GetCurrentVersion());
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "*/*");
+        }
+    }
+    
     public static string GetCurrentVersion()
     {
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
@@ -46,7 +49,7 @@ public static class UpdaterService
         var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "VERSION");
         return File.Exists(path) ? File.ReadAllText(path).Trim() : "0.0.0";
     }
-
+    
     public static void StartAutoCheck(Action<string> onUpdateAvailable, Action<string>? onError = null)
     {
         _checkTimer?.Dispose();
@@ -60,13 +63,14 @@ public static class UpdaterService
             }
             catch (Exception ex)
             {
+                LogService.LogError("Error comprobando actualizaciones", ex);
                 onError?.Invoke(ex.Message);
             }
         }, null, TimeSpan.FromSeconds(10), TimeSpan.FromHours(1));
     }
-
+    
     public static void StopAutoCheck() => _checkTimer?.Dispose();
-
+    
     public static async Task<UpdateInfo> CheckForUpdateAsync()
     {
         var current = GetCurrentVersion();
@@ -79,28 +83,30 @@ public static class UpdaterService
             DownloadUrl = downloadUrl
         };
     }
-
-    // Lanza el subprograma ReficioUpdater.exe para descargar e instalar la actualización.
-    // Así la app principal nunca se reemplaza a sí misma en caliente (evita bloqueos y
-    // fallos que comprometan el programa).
+    
     public static bool LaunchUpdater(string downloadUrl, out string error)
     {
         error = "";
         try
         {
             var execDir = AppDomain.CurrentDomain.BaseDirectory;
-            var updaterPath = Path.Combine(execDir, OperatingSystem.IsWindows() ? "ReficioUpdater.exe" : "ReficioUpdater");
-
+            var updaterName = OperatingSystem.IsWindows() ? "ReficioUpdater.exe" : "ReficioUpdater";
+            var updaterPath = Path.Combine(execDir, updaterName);
+            
             if (!File.Exists(updaterPath))
             {
-                error = $"no se encontró el actualizador ({Path.GetFileName(updaterPath)}). Reinstale la aplicación.";
-                DebugLog($"Falta actualizador: {updaterPath}");
-                return false;
+                updaterPath = ExtractEmbeddedUpdater(updaterName);
+                if (updaterPath == null)
+                {
+                    error = $"no se encontró el actualizador ({updaterName}). Reinstale la aplicación.";
+                    LogService.LogError($"Falta actualizador y no hay recurso embebido: {updaterName}");
+                    return false;
+                }
             }
-
+            
             var exeName = OperatingSystem.IsWindows() ? "Reficio.exe"
                 : Path.GetFileName(Environment.ProcessPath ?? "Reficio");
-
+            
             var psi = new ProcessStartInfo
             {
                 FileName = updaterPath,
@@ -113,67 +119,159 @@ public static class UpdaterService
             psi.ArgumentList.Add(execDir);
             psi.ArgumentList.Add("--exe");
             psi.ArgumentList.Add(exeName);
-
+            
             Process.Start(psi);
-            DebugLog($"Actualizador lanzado: {updaterPath} url={downloadUrl}");
+            LogService.Log($"Actualizador lanzado: {updaterPath} url={downloadUrl}");
             return true;
         }
         catch (Exception ex)
         {
             error = ex.Message;
-            DebugLog($"Error lanzando actualizador: {ex.Message}");
+            LogService.LogError("Error lanzando actualizador", ex);
             return false;
         }
     }
-
+    
+    private static string? ExtractEmbeddedUpdater(string fileName)
+    {
+        var resourceNames = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+        var updaterResource = resourceNames.FirstOrDefault(r =>
+            r.EndsWith("ReficioUpdater.exe", StringComparison.OrdinalIgnoreCase) ||
+            r.EndsWith("ReficioUpdater", StringComparison.OrdinalIgnoreCase));
+        
+        if (updaterResource == null)
+        {
+            LogService.LogError($"No se encontró recurso embebido del actualizador. Recursos: {string.Join(", ", resourceNames)}");
+            return null;
+        }
+        
+        var tempDir = Path.Combine(Path.GetTempPath(), "reficio_updater_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var tempPath = Path.Combine(tempDir, fileName);
+        
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(updaterResource);
+        if (stream == null)
+        {
+            LogService.LogError($"No se pudo leer recurso embebido: {updaterResource}");
+            return null;
+        }
+        
+        using var fs = File.Create(tempPath);
+        stream.CopyTo(fs);
+        
+        if (!OperatingSystem.IsWindows())
+        {
+            try { Process.Start("chmod", $"+x {tempPath}")?.WaitForExit(); } catch { }
+        }
+        
+        LogService.Log($"Actualizador extraído: {tempPath}");
+        return tempPath;
+    }
+    
     private static async Task<(string version, string downloadUrl)> GetLatestReleaseAsync()
     {
-        // Consulta la Release (tag) más reciente publicada en GitHub.
-        // Funciona sin token para repos públicos; para privados se usa token si existe.
         var token = GetAuthToken();
-
         var url = $"{ApiBaseUrl}/releases/latest";
-        DebugLog($"Consulta: url={url} tokenhash={TokenHash(token)}");
-        string json;
-        try
-        {
-            using var releaseResponse = await GetWithRetryAsync(url, acceptOctetStream: false);
-            json = await releaseResponse.Content.ReadAsStringAsync();
-            DebugLog($"Consulta status: {(int)releaseResponse.StatusCode}");
-            releaseResponse.EnsureSuccessStatusCode();
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            DebugLog($"Consulta status: 404");
-            throw new Exception(
-                "404: no se encontró el repositorio o no hay releases publicadas. " +
-                "Verifica que el repo 'Lanel96/reficio' exista y tenga al menos una Release publicada (no solo tag).", ex);
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-        {
-            DebugLog($"Consulta status: 401");
-            throw new Exception("El repositorio es privado y requiere autenticación. Configura un PAT con scope 'repo' en ~/.git-credentials o variable GIT_PASSWORD.", ex);
-        }
-
+        LogService.Log($"Consulta release: url={url} tokenhash={TokenHash(token ?? "")}");
+        
+        var json = await GetJsonAsync(url, token);
         var release = JsonConvert.DeserializeObject<GitHubRelease>(json);
         if (release == null || string.IsNullOrEmpty(release.TagName))
             throw new Exception("No se encontró ninguna Release publicada en el repositorio GitHub");
-
+        
         var latest = release.TagName.TrimStart('v');
-        if (!System.Version.TryParse(latest, out _))
+        if (!Version.TryParse(latest, out _))
             throw new Exception($"La Release '{release.TagName}' no tiene una versión válida");
-
+        
         var fileName = $"Reficio-{GetPlatformTag()}.zip";
         var asset = release.Assets?.FirstOrDefault(a => a.Name == fileName);
         if (asset == null || string.IsNullOrEmpty(asset.ApiUrl))
             throw new Exception($"No se encontró el instalador '{fileName}' en la Release v{latest}");
-
-        // Para repos privados se descarga via API del asset con Accept: application/octet-stream.
-        // Para públicos, la URL de descarga directa (browser_download_url) también funciona,
-        // pero la API del asset es más consistente.
+        
         return (latest, asset.ApiUrl);
     }
-
+    
+    private static async Task<string> GetJsonAsync(string url, string? token, int maxAttempts = 4)
+    {
+        HttpResponseMessage? lastResponse = null;
+        
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var client = GetHttpClient();
+                if (!string.IsNullOrEmpty(token))
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                else
+                    client.DefaultRequestHeaders.Authorization = null;
+                
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
+                
+                var response = await client.SendAsync(request);
+                lastResponse = response;
+                var code = (int)response.StatusCode;
+                
+                LogService.Log($"GET {code} intento {attempt}/{maxAttempts}");
+                
+                if (code == 200)
+                {
+                    return await response.Content.ReadAsStringAsync();
+                }
+                
+                if (code == 401 && !string.IsNullOrEmpty(token))
+                {
+                    LogService.Log("401: reintentando sin token (repo público)");
+                    client.DefaultRequestHeaders.Authorization = null;
+                    using var retryRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                    retryRequest.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
+                    var retryResponse = await client.SendAsync(retryRequest);
+                    if ((int)retryResponse.StatusCode == 200)
+                        return await retryResponse.Content.ReadAsStringAsync();
+                    lastResponse = retryResponse;
+                }
+                
+                if (code == 404)
+                    throw new Exception("404: no se encontró el repositorio o no hay releases publicadas. Verifica que el repo exista y tenga al menos una Release publicada.");
+                
+                if (code == 403)
+                    throw new Exception("403: acceso denegado. Verifica límites de rate limiting de GitHub API.");
+                
+                if (code is 429 or >= 500 and <= 599)
+                {
+                    if (attempt < maxAttempts)
+                    {
+                        await Task.Delay(1200 * attempt);
+                        continue;
+                    }
+                }
+                
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Error HTTP {code}: {errorBody}");
+            }
+            catch (HttpRequestException ex)
+            {
+                LogService.LogError($"GET excepción intento {attempt}", ex);
+                if (attempt < maxAttempts)
+                    await Task.Delay(1200 * attempt);
+                else
+                    throw;
+            }
+        }
+        
+        throw new Exception($"Falló después de {maxAttempts} intentos. Último estado: {(int?)lastResponse?.StatusCode}");
+    }
+    
+    private static HttpClient GetHttpClient()
+    {
+        lock (HttpClientLock)
+        {
+            if (_httpClient == null)
+                InitializeHttpClient();
+            return _httpClient!;
+        }
+    }
+    
     private static string GetPlatformTag()
     {
         if (OperatingSystem.IsWindows()) return "windows-x64";
@@ -185,7 +283,7 @@ public static class UpdaterService
         if (OperatingSystem.IsLinux()) return "linux-x64";
         return "unknown";
     }
-
+    
     private static int CompareVersions(string v1, string v2)
     {
         var p1 = v1.Split('.'); var p2 = v2.Split('.');
@@ -197,7 +295,7 @@ public static class UpdaterService
         }
         return 0;
     }
-
+    
     private static string? GetAuthToken()
     {
         var credPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".git-credentials");
@@ -210,67 +308,30 @@ public static class UpdaterService
                     var rest = line.Substring(idx + 3);
                     var at = rest.LastIndexOf('@');
                     if (at <= 0) continue;
-                    var userinfo = rest.Substring(0, at);   // "usuario:token" o solo "token"
+                    var userinfo = rest.Substring(0, at);
                     var colon = userinfo.IndexOf(':');
                     var token = colon >= 0 ? userinfo.Substring(colon + 1) : userinfo;
                     if (!string.IsNullOrEmpty(token)) return token;
                 }
-        var u = Environment.GetEnvironmentVariable("GIT_USERNAME");
         var p = Environment.GetEnvironmentVariable("GIT_PASSWORD");
-        if (!string.IsNullOrEmpty(u) && !string.IsNullOrEmpty(p)) return p;
-        return DefaultToken;
+        if (!string.IsNullOrEmpty(p)) return p;
+        return null;
     }
-
-    private static void AddAuth(HttpClient client, string token)
+    
+    private static string TokenHash(string token)
     {
-        if (!string.IsNullOrEmpty(token))
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+        if (string.IsNullOrEmpty(token)) return "(vacío)";
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
     }
-
-    // Reintenta ante fallos transitorios (401/429/5xx o de red) manteniendo la URL y token válidos.
-    private static async Task<HttpResponseMessage> GetWithRetryAsync(string url, bool acceptOctetStream = false, int maxAttempts = 4)
-    {
-        HttpResponseMessage? last = null;
-        for (int i = 1; i <= maxAttempts; i++)
-        {
-            try
-            {
-                AddAuth(Http, GetAuthToken());
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (acceptOctetStream)
-                    request.Headers.TryAddWithoutValidation("Accept", "application/octet-stream");
-                var response = await Http.SendAsync(request);
-                var code = (int)response.StatusCode;
-                if (code == 200) return response;
-                last = response;
-                DebugLog($"GET {(int)response.StatusCode} intento {i}/{maxAttempts}");
-                if (code is 401 or 429 or >= 500 && code <= 599)
-                {
-                    if (i < maxAttempts)
-                    {
-                        response.Dispose();
-                        await Task.Delay(1200 * i);
-                        continue;
-                    }
-                }
-                return response;
-            }
-            catch (Exception ex)
-            {
-                DebugLog($"GET excepción intento {i}: {ex.Message}");
-                await Task.Delay(1200 * i);
-            }
-        }
-        // Devuelve la última respuesta (o una 503 si todo falló con excepción de red).
-        return last ?? new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable);
-    }
-
+    
     private class GitHubRelease
     {
         [JsonProperty("tag_name")] public string TagName { get; set; } = "";
         [JsonProperty("assets")] public List<GitHubAsset>? Assets { get; set; }
     }
-
+    
     private class GitHubAsset
     {
         [JsonProperty("name")] public string Name { get; set; } = "";
