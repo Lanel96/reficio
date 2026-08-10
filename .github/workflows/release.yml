@@ -45,8 +45,41 @@ jobs:
           name: reficio-windows
           path: publish/Reficio-windows-x64.zip
 
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish macOS ARM64
+        run: |
+          dotnet publish Reficio.csproj -c Release -r osx-arm64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -o publish/osx-arm64
+          dotnet publish ReficioUpdater/ReficioUpdater.csproj -c Release -r osx-arm64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -o publish/updater
+          cp publish/updater/ReficioUpdater publish/osx-arm64/ReficioUpdater
+
+      - name: Package ZIP
+        run: |
+          cd publish/osx-arm64
+          zip -r ../Reficio-macos-arm64.zip . -x "*.pdb"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reficio-macos
+          path: publish/Reficio-macos-arm64.zip
+
   release:
-    needs: build-windows
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
