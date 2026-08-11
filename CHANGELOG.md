@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.4.12] - 2026-08-11
+
+### 🎨 UI/UX
+- **Icono de la aplicación**: Añadido `Resources/Reficio.ico` (256x256) embebido en el ejecutable via `<ApplicationIcon>`; visible en Explorer, barra de tareas y Alt+Tab
+
+### 🔧 Build
+- Version bump: 1.4.11 → 1.4.12
+
 ## [1.4.11] - 2026-08-11
 
 ### 🔒 Seguridad
