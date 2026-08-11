@@ -18,7 +18,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "8.0.x"
+
+      - name: Restore ReficioUpdater
+        run: dotnet restore ReficioUpdater/ReficioUpdater.csproj
+
+      - name: Restore Reficio
+        run: dotnet restore Reficio.csproj
 
       - name: Publish Windows x64
         run: |
@@ -27,11 +33,14 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o publish/windows-x64
+
+      - name: Build and copy ReficioUpdater
+        run: |
           dotnet publish ReficioUpdater/ReficioUpdater.csproj -c Release -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
             -o publish/updater
-          Copy-Item publish/updater/ReficioUpdater.exe publish/windows-x64/ReficioUpdater.exe
+          Copy-Item publish/updater/ReficioUpdater.exe publish/windows-x64/ReficioUpdater.exe -Force
 
       - name: Package ZIP
         shell: powershell
@@ -53,7 +62,13 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "8.0.x"
+
+      - name: Restore ReficioUpdater
+        run: dotnet restore ReficioUpdater/ReficioUpdater.csproj
+
+      - name: Restore Reficio
+        run: dotnet restore Reficio.csproj
 
       - name: Publish macOS ARM64
         run: |
@@ -61,6 +76,9 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -o publish/osx-arm64
+
+      - name: Build and copy ReficioUpdater
+        run: |
           dotnet publish ReficioUpdater/ReficioUpdater.csproj -c Release -r osx-arm64 \
             --self-contained true \
             -p:PublishSingleFile=true \
