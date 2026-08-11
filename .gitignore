@@ -6,6 +6,7 @@ reficio.exe
 bin/
 obj/
 publish/
+test-publish/
 *.user
 *.suo
 *.userosscache
