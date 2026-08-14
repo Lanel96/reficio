@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Reficio.Views.EditDialog"
-        Title="Editar" Width="480" Height="340"
+        Title="Editar" Width="520" Height="480" MinHeight="380"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         Background="#F5F6FA">
 
     <Window.Styles>
@@ -11,9 +11,10 @@
             <Setter Property="Background" Value="#2563EB"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="20,8"/>
+            <Setter Property="Padding" Value="20,10"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinWidth" Value="100"/>
         </Style>
         <Style Selector="Button.save:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1D4ED8"/>
@@ -22,9 +23,10 @@
             <Setter Property="Background" Value="#E5E7EB"/>
             <Setter Property="Foreground" Value="#374151"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="20,8"/>
+            <Setter Property="Padding" Value="20,10"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinWidth" Value="100"/>
         </Style>
         <Style Selector="Button.cancel:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#D1D5DB"/>
@@ -33,13 +35,20 @@
 
     <Border Background="White" CornerRadius="12" Margin="0" Padding="24"
             BorderBrush="#E5E7EB" BorderThickness="1">
-        <DockPanel>
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
-                        HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
-                <Button Content="Guardar" Classes="save" Click="Save_Click" IsDefault="True"/>
-                <Button Content="Cancelar" Classes="cancel" Click="Cancel_Click" IsCancel="True"/>
-            </StackPanel>
-            <StackPanel x:Name="FieldsPanel" Spacing="4"/>
+        <DockPanel LastChildFill="True">
+            <!-- Botones fijos en la parte inferior -->
+            <Border DockPanel.Dock="Bottom" Margin="0,20,0,0" Padding="0,12,0,0"
+                    BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                    <Button Content="Cancelar" Classes="cancel" Click="Cancel_Click" IsCancel="True"/>
+                    <Button Content="Guardar" Classes="save" Click="Save_Click" IsDefault="True"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Área de campos con scroll -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="FieldsPanel" Spacing="16" Margin="0,0,8,0"/>
+            </ScrollViewer>
         </DockPanel>
     </Border>
 </Window>
