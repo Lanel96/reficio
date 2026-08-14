@@ -5,6 +5,14 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.4.13.1] - 2026-08-11
+
+### 🔧 Maintenance
+- **Logging cleanup**: Eliminado logging de debug que mostraba nombres de tablas y columnas internas en el log de la aplicación
+
+### 🔧 Build
+- Version bump: 1.4.13 → 1.4.13.1
+
 ## [1.4.13] - 2026-08-11
 
 ### 🐛 Correcciones
