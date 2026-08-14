@@ -5,15 +5,16 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
-## [1.4.12] - 2026-08-11
+## [1.4.13] - 2026-08-11
 
-### 🎨 UI/UX
-- **Icono de la aplicación**: Añadido `Resources/Reficio.ico` (256x256) embebido en el ejecutable via `<ApplicationIcon>`; visible en Explorer, barra de tareas y Alt+Tab
+### 🐛 Correcciones
+- **Firebird table/column names**: `TRIM()` en consultas a `RDB$RELATIONS` y `RDB$RELATION_FIELDS` (campos CHAR con espacios trailing); fix "tabla no existe" para DINGR/MPACI
+- **EditDialog UI**: ScrollViewer para campos, botones en footer fijo, ventana redimensionable (520x480, MinHeight=380), sin overlap de botones sobre campos
 
 ### 🔧 Build
-- Version bump: 1.4.11 → 1.4.12
+- Version bump: 1.4.12 → 1.4.13
 
-## [1.4.11] - 2026-08-11
+## [1.4.12] - 2026-08-11
 
 ### 🔒 Seguridad
 - **Hash de contraseñas BCrypt**: Migración de almacenamiento en texto plano a BCrypt (work factor 12) con migración automática en login
