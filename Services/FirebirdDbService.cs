@@ -99,14 +99,14 @@ public class FirebirdDbService : IDisposable
     
     public List<string> GetTables()
     {
-        var result = Query("SELECT RDB$RELATION_NAME FROM RDB$RELATIONS WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$RELATION_NAME");
-        return result.Rows.Select(r => r["RDB$RELATION_NAME"]?.ToString() ?? "").ToList();
+        var result = Query("SELECT TRIM(RDB$RELATION_NAME) AS RELATION_NAME FROM RDB$RELATIONS WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RELATION_NAME");
+        return result.Rows.Select(r => r["RELATION_NAME"]?.ToString() ?? "").ToList();
     }
     
     public List<string> GetColumns(string table)
     {
-        var result = Query("SELECT RDB$FIELD_NAME FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = @p0 ORDER BY RDB$FIELD_POSITION", table);
-        return result.Rows.Select(r => r["RDB$FIELD_NAME"]?.ToString() ?? "").ToList();
+        var result = Query("SELECT TRIM(RDB$FIELD_NAME) AS FIELD_NAME FROM RDB$RELATION_FIELDS WHERE TRIM(RDB$RELATION_NAME) = @p0 ORDER BY RDB$FIELD_POSITION", table);
+        return result.Rows.Select(r => r["FIELD_NAME"]?.ToString() ?? "").ToList();
     }
     
     public void Dispose()

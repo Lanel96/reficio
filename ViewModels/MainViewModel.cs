@@ -119,9 +119,16 @@ public partial class MainViewModel : ObservableObject
         try
         {
             if (_db == null) { FacturaStatus = "Conecte a una BD"; PacienteStatus = "Conecte a una BD"; return; }
+            
+            // Debug: list all tables to verify names
+            var allTables = _db.GetTables();
+            AppendLog($"Tablas en BD: {string.Join(", ", allTables)}");
+            
             _facturaModule = new CorrectionModule(_db, "DINGR"); _facturaModule.LoadColumns();
             _pacienteModule = new CorrectionModule(_db, "MPACI"); _pacienteModule.LoadColumns();
             FacturaStatus = "DINGR"; PacienteStatus = "MPACI";
+            AppendLog($"Columnas DINGR: {string.Join(", ", _facturaModule.Columns)}");
+            AppendLog($"Columnas MPACI: {string.Join(", ", _pacienteModule.Columns)}");
         }
         catch (Exception ex) { AppendLog($"No se pudo cargar tablas: {ex.Message}"); }
     }
@@ -133,9 +140,15 @@ public partial class MainViewModel : ObservableObject
             _db?.Dispose();
             _db = new FirebirdDbService(_conn.Host, _conn.Port, _conn.DbPath, _conn.DbUser, _conn.DbPassword);
             _db.TestConnection();
+            
+            var allTables = _db.GetTables();
+            AppendLog($"Tablas en BD: {string.Join(", ", allTables)}");
+            
             _facturaModule = new CorrectionModule(_db, "DINGR"); _facturaModule.LoadColumns();
             _pacienteModule = new CorrectionModule(_db, "MPACI"); _pacienteModule.LoadColumns();
             FacturaStatus = "DINGR"; PacienteStatus = "MPACI";
+            AppendLog($"Columnas DINGR: {string.Join(", ", _facturaModule.Columns)}");
+            AppendLog($"Columnas MPACI: {string.Join(", ", _pacienteModule.Columns)}");
         }
         catch (Exception ex)
         {
