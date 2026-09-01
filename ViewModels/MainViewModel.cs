@@ -325,6 +325,7 @@ public partial class MainViewModel : ObservableObject
                 if (updates.ContainsKey("FECHNACI") && DateTime.TryParse(updates["FECHNACI"]?.ToString(), out var d))
                     updates["FECHNACI"] = d.ToString("yyyy-MM-dd");
                 _pacienteModule.UpdateRecord("CODI", codiValue, updates);
+                DoSearchPaciente();
                 PacienteStatus = "Registro actualizado";
             }
             catch (Exception ex) { ShowError(window, $"Error: {ex.Message}"); }
