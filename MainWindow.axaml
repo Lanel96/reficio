@@ -245,7 +245,8 @@
                                         <TextBlock Text="CODI:" VerticalAlignment="Center"
                                                    FontSize="13" Foreground="#374151"/>
                                         <TextBox Text="{Binding FacturaCodi}" Width="320"
-                                                 Watermark="Ingrese código de factura"/>
+                                                 Watermark="Ingrese código de factura"
+                                                 KeyDown="SearchBox_KeyDown"/>
                                         <Button Content="Buscar" Classes="primary"
                                                 Command="{Binding SearchFacturaCommand}" Padding="16,8"/>
                                         <Button Content="Limpiar" Classes="secondary"
@@ -294,11 +295,13 @@
                                         <TextBlock Text="CODI:" VerticalAlignment="Center"
                                                    FontSize="13" Foreground="#374151"/>
                                         <TextBox Text="{Binding PacienteCodi}" Width="140"
-                                                 Watermark="Código"/>
+                                                 Watermark="Código"
+                                                 KeyDown="SearchBox_KeyDown"/>
                                         <TextBlock Text="Nombre:" VerticalAlignment="Center"
                                                    FontSize="13" Foreground="#374151"/>
                                         <TextBox Text="{Binding PacienteNomb}" Width="200"
-                                                 Watermark="Nombre del paciente"/>
+                                                 Watermark="Nombre del paciente"
+                                                 KeyDown="SearchBox_KeyDown"/>
                                         <Button Content="Buscar" Classes="primary"
                                                 Command="{Binding SearchPacienteCommand}" Padding="16,8"/>
                                         <Button Content="Limpiar" Classes="secondary"
