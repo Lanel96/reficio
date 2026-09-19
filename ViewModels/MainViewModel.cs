@@ -295,7 +295,7 @@ public partial class MainViewModel : ObservableObject
         if (FacturaRecords.Count == 0 || FacturaSelectedIndex < 0 || FacturaSelectedIndex >= FacturaRecords.Count) { FacturaStatus = "Seleccione un registro"; return; }
         var record = FacturaRecords[FacturaSelectedIndex];
         if (!record.TryGetValue("CODI", out var codiValue) || codiValue == null) { FacturaStatus = "Registro sin CODI válido"; return; }
-        var fields = new[] { "CODI", "NOMBRECI", "USOCFDI", "REGIFISC" };
+        var fields = new[] { "CODI", "NOMBRECI", "USOCFDI", "REGIFISC", "REFE" };
         var dialog = new EditDialog(record, fields, "Editar Factura");
         var window = GetWindow();
         if (window != null && await dialog.ShowDialog<bool>(window) && _facturaModule != null)

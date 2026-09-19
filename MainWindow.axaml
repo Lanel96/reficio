@@ -276,6 +276,7 @@
                                             <DataGridTextColumn Header="Nombre" Binding="{Binding [NOMBRECI]}" Width="*"/>
                                             <DataGridTextColumn Header="Uso CFDI" Binding="{Binding [USOCFDI]}" Width="120"/>
                                             <DataGridTextColumn Header="Reg. Fiscal" Binding="{Binding [REGIFISC]}" Width="120"/>
+                                            <DataGridTextColumn Header="Ref." Binding="{Binding [REFE]}" Width="120"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
