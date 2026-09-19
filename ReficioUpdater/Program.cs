@@ -154,9 +154,6 @@ internal static class Program
     {
         if (OperatingSystem.IsWindows())
         {
-            // El zip puede contener:
-            // - windows-x64/Reficio.exe (publicado como carpeta)
-            // - Reficio.exe directamente (publicado como single-file)
             var sourceDir = Path.Combine(extractDir, "windows-x64");
             if (!Directory.Exists(sourceDir)) sourceDir = extractDir;
             
@@ -168,17 +165,28 @@ internal static class Program
             var destExe = Path.Combine(installDir, exeName);
             var backup = destExe + ".old";
             
-            try { if (File.Exists(backup)) File.Delete(backup); } catch { }
-            try { if (File.Exists(destExe)) File.Move(destExe, backup); } catch { }
+            // Eliminar backup viejo si existe
+            TryDeleteFile(backup);
+            
+            // Mover ejecutable actual a .old
+            if (File.Exists(destExe))
+            {
+                TryDeleteFile(destExe);
+                try { File.Move(destExe, backup); DebugLog($"Backup creado: {backup}"); }
+                catch (Exception ex) { DebugLog($"Error creando backup: {ex.Message}"); }
+            }
+            
             File.Copy(srcExe, destExe, true);
             DebugLog($"Reemplazado {destExe}");
             
-            // También copiar archivos adicionales si existen (pdb, dlls, etc.)
+            // Copiar archivos adicionales (ReficioUpdater.exe, dlls, etc.)
             foreach (var file in Directory.GetFiles(sourceDir))
             {
                 var fileName = Path.GetFileName(file);
-                if (fileName.Equals(exeName, StringComparison.OrdinalIgnoreCase)) continue;
                 var destFile = Path.Combine(installDir, fileName);
+                if (fileName.Equals(exeName, StringComparison.OrdinalIgnoreCase)) continue;
+                // No sobrescribir el updater que se está ejecutando
+                if (fileName.Equals("ReficioUpdater.exe", StringComparison.OrdinalIgnoreCase)) continue;
                 try { File.Copy(file, destFile, true); } catch { }
             }
         }
@@ -203,6 +211,22 @@ internal static class Program
             {
                 CopyDirectory(Path.Combine(extractDir, platform), installDir);
             }
+        }
+    }
+    
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+                DebugLog($"Eliminado: {path}");
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLog($"No se pudo eliminar {path}: {ex.Message}");
         }
     }
     
