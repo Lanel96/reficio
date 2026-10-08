@@ -40,7 +40,7 @@ public class FirebirdDbService : IDisposable
             DataSource = Host,
             Port = Port,
             Dialect = 3,
-            Charset = "WIN1252",
+            Charset = "ISO8859_1",
             Pooling = true,
             MinPoolSize = 0,
             MaxPoolSize = 10,
